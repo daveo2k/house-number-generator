@@ -321,6 +321,7 @@ tr:last-child td { border-bottom: 0; }
       <dl class="spec" id="spec"></dl>
 
       <div class="btns">
+        <button type="button" class="btn primary" id="stl" hidden>Download STL files</button>
         <button type="button" class="btn primary" id="copy">Copy settings</button>
         <button type="button" class="btn" id="reset-design">Reset design</button>
       </div>
@@ -572,6 +573,30 @@ tr:last-child td { border-bottom: 0; }
     try {
       navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Copied to the clipboard.'; }, fallback);
     } catch (e) { fallback(); }
+  });
+
+  // ---------- STL download (only when served by the container's API) ----------
+  fetch('api/health').then(r => r.ok ? r.json() : null).then(j => {
+    if (j && j.stl) { $('stl').hidden = false; $('copy').classList.remove('primary'); $('copy-msg').textContent = 'Download STL files makes the face plate, diffuser shell and back panel, ready for your slicer.'; }
+  }).catch(() => {});
+  $('stl').addEventListener('click', async () => {
+    const b = $('stl'), msg = $('copy-msg');
+    b.disabled = true; b.textContent = 'Generating…'; msg.textContent = 'Building the three parts. This takes a few seconds.';
+    try {
+      const r = await fetch('api/stl', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(S) });
+      if (!r.ok) throw new Error(await r.text() || r.statusText);
+      const blob = await r.blob();
+      const m = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = m ? m[1] : 'plaque-stl.zip';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      msg.textContent = 'Downloaded. The zip holds the three STLs, your settings and a parts note.';
+    } catch (e) {
+      msg.textContent = 'The STL files could not be made: ' + e.message;
+    } finally {
+      b.disabled = false; b.textContent = 'Download STL files';
+    }
   });
 
   // ---------- drawings ----------

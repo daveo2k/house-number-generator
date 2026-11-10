@@ -3,3 +3,6 @@
 cad/out/
 designs/
 __pycache__/
+# fonts other than Jost are downloaded at build time
+cad/fonts/*.ttf
+!cad/fonts/Jost[[]wght].ttf

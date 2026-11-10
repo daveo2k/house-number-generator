@@ -19,7 +19,7 @@ The plaque is a sealed light box with three printed parts:
 - Wall fixing: 2 or 4 holes, countersunk or keyhole, screw size and distance from the edge.
 - Night or day lighting, and an assembled or exploded view.
 
-Settings are saved in the browser. **Copy settings** exports them as JSON.
+Settings are saved in the browser. **Download STL files** builds the three parts on the server and downloads them as a zip. **Copy settings** exports the design as JSON.
 
 ## Generate STL files
 
@@ -80,13 +80,16 @@ docker run -d -p 8080:80 --name house-number-generator --restart unless-stopped 
 
 ## Run without Docker
 
-Serve the `site/` folder with any static web server, for example:
-
 ```sh
-cd site && python3 -m http.server 8080
+python3 -m venv .venv
+.venv/bin/pip install -r cad/requirements.txt
+PORT=8080 .venv/bin/python server.py
 ```
+
+`server.py` serves the page from `site/` and adds two endpoints: `GET /api/health`, and `POST /api/stl`, which takes the settings JSON and returns a zip. If you serve `site/` with a plain static web server instead, the designer still works but the **Download STL files** button stays hidden.
 
 ## Notes
 
-- three.js r128 is bundled in `site/vendor/`. Fonts load from Google Fonts, so the browser needs internet access for the lettering to show in the right typefaces.
+- The container runs Python, not nginx, and listens on port 8080 inside the container. Fonts for STL generation are downloaded into the image when it's built, so generating works offline. The page itself still loads its fonts from Google Fonts, so the browser needs internet access for the preview lettering to show in the right typefaces.
+- three.js r128 is bundled in `site/vendor/`.
 - **Copy settings** uses the clipboard, which browsers only allow over HTTPS or on `localhost`. Anywhere else, the settings appear in a text box for you to copy by hand.

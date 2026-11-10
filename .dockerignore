@@ -1,4 +1,10 @@
 .git
 .gitignore
-README.md
+.venv
+**/__pycache__
+*.stl
+stl/
+designs/
 docker-compose.yml
+.env
+.env.example

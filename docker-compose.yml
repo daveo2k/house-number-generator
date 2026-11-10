@@ -6,5 +6,5 @@ services:
     image: house-number-generator:latest
     container_name: house-number-generator
     ports:
-      - "${HTTP_PORT:-8080}:80"
+      - "${HTTP_PORT:-8080}:8080"
     restart: unless-stopped

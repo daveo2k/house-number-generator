@@ -58,17 +58,22 @@ SEG = 48               # segments for circles
 
 
 # ---------------------------------------------------------------- fonts / text
-def load_font(family, weight):
+def font_file(family):
+    """Path to the font file, downloading it from the Google Fonts repository if needed."""
     rel = FONT_FILES.get(family)
     if not rel:
-        raise SystemExit(f"Unknown font: {family}")
+        raise ValueError(f"Unknown font: {family}")
     path = FONT_DIR / pathlib.Path(rel).name
     if not path.exists():
         FONT_DIR.mkdir(parents=True, exist_ok=True)
         url = GF + rel.replace("[", "%5B").replace("]", "%5D")
         print(f"Downloading {family} ...")
         urllib.request.urlretrieve(url, path)
-    font = TTFont(path)
+    return path
+
+
+def load_font(family, weight):
+    font = TTFont(font_file(family))
     if "fvar" in font:
         axis = next(a for a in font["fvar"].axes if a.axisTag == "wght")
         w = max(axis.minValue, min(axis.maxValue, weight))
@@ -250,14 +255,17 @@ def flip_for_print(m):
     return m.translate((0, 0, -m.bounding_box()[2]))
 
 
-def save(m, path):
+def stl_bytes(m):
     mesh = m.to_mesh()
     v = np.asarray(mesh.vert_properties)[:, :3]
     f = np.asarray(mesh.tri_verts)
-    trimesh.Trimesh(v, f, process=False).export(path)
+    return trimesh.Trimesh(v, f, process=False).export(file_type="stl")
+
+
+def describe(name, m):
     b = m.bounding_box()
-    print(f"  {path.name:20s} {b[3]-b[0]:6.1f} x {b[4]-b[1]:6.1f} x {b[5]-b[2]:5.1f} mm   "
-          f"{m.volume()/1000:7.1f} cm3   {m.num_tri()} triangles")
+    return (f"{name:20s} {b[3]-b[0]:6.1f} x {b[4]-b[1]:6.1f} x {b[5]-b[2]:5.1f} mm   "
+            f"{m.volume()/1000:7.1f} cm3")
 
 
 # ---------------------------------------------------------------- derived sizes (match the web designer)
@@ -356,6 +364,18 @@ def back_panel(S, g):
     return panel
 
 
+def build(S):
+    """Build all parts. Returns {filename: (manifold, stl_bytes)}."""
+    g = derive(S)
+    letters = lettering(S)
+    parts = {
+        "face_plate.stl": face_plate(S, g, letters),
+        "diffuser_shell.stl": diffuser_shell(S, g),
+        "back_panel.stl": back_panel(S, g),
+    }
+    return {name: (m, stl_bytes(m)) for name, m in parts.items()}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("settings", help="JSON from the designer's Copy settings button")
@@ -364,12 +384,10 @@ def main():
     S = json.loads(pathlib.Path(a.settings).read_text())
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    g = derive(S)
-    letters = lettering(S)
     print(f"Plaque {S['W']} x {S['H']} x {S['D']} mm")
-    save(face_plate(S, g, letters), out / "face_plate.stl")
-    save(diffuser_shell(S, g), out / "diffuser_shell.stl")
-    save(back_panel(S, g), out / "back_panel.stl")
+    for name, (m, data) in build(S).items():
+        (out / name).write_bytes(data)
+        print("  " + describe(name, m))
 
 
 if __name__ == "__main__":
