@@ -1,0 +1,8 @@
+services:
+  house-number-generator:
+    build: .
+    image: house-number-generator:latest
+    container_name: house-number-generator
+    ports:
+      - "8080:80"
+    restart: unless-stopped

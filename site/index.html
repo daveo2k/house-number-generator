@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>House Number Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Josefin+Sans:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Bebas+Neue&family=Roboto+Slab:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=DM+Serif+Display&family=Cinzel:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: workshop sheet. Sticky live render beside a long control rail, then drawings and a parts list. */
+:root {
+  --bg: #eef0f0;
+  --surface: #ffffff;
+  --fg: #1b1e21;
+  --muted: #5b646b;
+  --line: #d3d8db;
+  --accent: #b9741a;          /* 3000K LED amber */
+  --warn-bg: #fff4e0;
+  --warn-fg: #7a4a07;
+  --scene: #1a1b1d;
+  --p-face: #1f2022;
+  --p-face-stroke: #1f2022;
+  --p-diff: #ffffff;
+  --p-back: #a3a9ae;
+  --brass: #b8954a;
+  --led: #f2b340;
+  --font-display: "Jost", "Futura", "Avenir Next", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121416; --surface: #1a1d20; --fg: #e8eaeb; --muted: #9aa3a9; --line: #2d3236;
+    --accent: #f0b45a; --warn-bg: #3a2a12; --warn-fg: #f6d39a; --scene: #0d0e0f;
+    --p-face: #0b0b0c; --p-face-stroke: #6c7277; --p-diff: #f4f4f1; --p-back: #5f666c;
+    --brass: #c9a65a; --led: #f5c04f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121416; --surface: #1a1d20; --fg: #e8eaeb; --muted: #9aa3a9; --line: #2d3236;
+  --accent: #f0b45a; --warn-bg: #3a2a12; --warn-fg: #f6d39a; --scene: #0d0e0f;
+  --p-face: #0b0b0c; --p-face-stroke: #6c7277; --p-diff: #f4f4f1; --p-back: #5f666c;
+  --brass: #c9a65a; --led: #f5c04f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 32px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.05; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: 22px; margin: 0 0 4px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 64ch; }
+.dims { font-family: var(--font-mono); font-size: 13px; color: var(--muted); display: flex; gap: 18px; flex-wrap: wrap; }
+.dims b { color: var(--fg); font-weight: 500; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.viewcol { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer { position: relative; background: var(--scene); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; min-height: 280px; }
+.viewer canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
+.viewer canvas:active { cursor: grabbing; }
+.hint { position: absolute; left: 14px; bottom: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); pointer-events: none; }
+.webgl-fail { position: absolute; inset: 0; display: grid; place-items: center; color: #ddd; padding: 24px; text-align: center; }
+.viewbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.viewbar .seg { flex: 1 1 220px; }
+.warnings { display: flex; flex-direction: column; gap: 6px; }
+.warn { background: var(--warn-bg); color: var(--warn-fg); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+
+.panel { display: flex; flex-direction: column; gap: 14px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+summary { cursor: pointer; list-style: none; padding: 12px 14px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-family: var(--font-mono); color: var(--muted); }
+details[open] summary::after { content: "−"; }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 10px; }
+.sec { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+input[type="text"], input[type="number"], select {
+  font: inherit; font-size: 14px; width: 100%; min-width: 0; padding: 7px 9px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+}
+input[type="text"] { text-transform: uppercase; letter-spacing: .04em; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input:disabled, select:disabled { opacity: .45; cursor: not-allowed; }
+.unit { position: relative; }
+.unit input { padding-right: 34px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.unit::after { content: attr(data-u); position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none; }
+.chars { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 66px; }
+.ch b { font-family: var(--font-display); font-size: 20px; font-weight: 500; line-height: 1; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; background: var(--surface); }
+.seg button { font: inherit; font-size: 13px; border: 0; border-radius: 6px; padding: 7px 6px; background: transparent; color: var(--fg); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.seg button:focus-visible, .swatch:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.swatch { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 7px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); cursor: pointer; text-align: left; }
+.swatch i { display: block; width: 100%; height: 20px; border-radius: 4px; border: 1px solid rgba(127,127,127,.35); }
+.swatch span { font-size: 12px; line-height: 1.2; }
+.swatch small { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 13px; background: var(--surface); border: 1px solid var(--line); color: var(--fg); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+.hintline { font-size: 12px; color: var(--muted); margin: 0; }
+textarea#json { width: 100%; min-height: 120px; font-family: var(--font-mono); font-size: 11px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 8px; }
+.spec { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.spec dt { color: var(--muted); }
+.spec dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+.drawings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 20px; }
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figure.wide { grid-column: 1 / -1; }
+figcaption { font-size: 13px; color: var(--muted); }
+figure svg { width: 100%; height: auto; display: block; max-height: 560px; }
+.fig-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.scale { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+.parts { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+td.mono { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+.chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; border: 1px solid var(--muted); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 28px; margin-top: 18px; font-size: 14px; }
+.notes h3 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+.notes p, .notes ol { margin: 0; color: var(--muted); }
+.notes ol { padding-left: 18px; }
+
+@media (max-width: 960px) {
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  .viewcol { position: static; }
+  .viewer { aspect-ratio: 4 / 3; }
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">House number generator · check the look before CAD</p>
+      <h1 id="h-title">11A Stakeford Road</h1>
+      <p class="sub">A sealed light box. The white diffuser shell forms the sides and the panel behind the lettering, the black face plate sits on the front, and a back panel mounts to the wall first. The shell slides over it and locks with a recessed M3 grub screw underneath.</p>
+    </div>
+    <div class="dims" id="h-dims"></div>
+  </header>
+
+  <section class="stage">
+    <div class="viewcol">
+      <div class="viewer" id="viewer">
+        <canvas id="scene" aria-label="3D render of the house number plaque on a rendered wall"></canvas>
+        <div class="hint">Drag to rotate</div>
+      </div>
+      <div class="viewbar">
+        <div class="seg" data-key="night">
+          <button type="button" id="lt-night" data-val="1">Night, LEDs on</button>
+          <button type="button" id="lt-day" data-val="0">Day, LEDs off</button>
+        </div>
+        <div class="seg" data-key="exploded">
+          <button type="button" id="vw-asm" data-val="0">Assembled</button>
+          <button type="button" id="vw-exp" data-val="1">Exploded</button>
+        </div>
+        <button type="button" class="btn" id="reset-view">Reset angle</button>
+      </div>
+      <div class="warnings" id="warnings" aria-live="polite"></div>
+    </div>
+
+    <aside class="panel">
+      <details open>
+        <summary>Overall size</summary>
+        <div class="sec">
+          <div class="row">
+            <div class="field"><label class="label" for="W">Width</label><div class="unit" data-u="mm"><input type="number" id="W" min="120" max="500" step="1"></div></div>
+            <div class="field"><label class="label" for="H">Height</label><div class="unit" data-u="mm"><input type="number" id="H" min="80" max="400" step="1"></div></div>
+            <div class="field"><label class="label" for="D">Depth</label><div class="unit" data-u="mm"><input type="number" id="D" min="22" max="80" step="0.5"></div></div>
+          </div>
+          <p class="hintline">Width and height are the outside of the face plate, the biggest part. Depth is from the wall to the front face. The diffuser and back panel are sized from these.</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Top line (number)</summary>
+        <div class="sec">
+          <div class="field"><label class="label" for="line1">Text</label><input type="text" id="line1" maxlength="8"></div>
+          <div class="row">
+            <div class="field"><label class="label" for="f1">Font</label><select id="f1"></select></div>
+            <div class="field"><label class="label" for="w1">Weight</label><select id="w1"></select></div>
+          </div>
+          <div class="field">
+            <span class="label">Height of each character (cap height)</span>
+            <div class="chars" id="chars"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="size-all">Set all</label><div class="unit" data-u="mm"><input type="number" id="size-all" min="10" max="300" step="1"></div></div>
+            <div class="field"><label class="label" for="track1">Spacing</label><div class="unit" data-u="mm"><input type="number" id="track1" min="-10" max="40" step="0.5"></div></div>
+          </div>
+          <div class="field">
+            <span class="label">Line up mixed heights by</span>
+            <div class="seg" data-key="align">
+              <button type="button" id="al-base" data-val="baseline">Bottom</button>
+              <button type="button" id="al-mid" data-val="centre">Centre</button>
+              <button type="button" id="al-top" data-val="top">Top</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Second line (street)</summary>
+        <div class="sec">
+          <div class="field"><label class="label" for="line2">Text</label><input type="text" id="line2" maxlength="32"></div>
+          <div class="row">
+            <div class="field"><label class="label" for="f2">Font</label><select id="f2"></select></div>
+            <div class="field"><label class="label" for="w2">Weight</label><select id="w2"></select></div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="cap2">Cap height</label><div class="unit" data-u="mm"><input type="number" id="cap2" min="5" max="100" step="0.5"></div></div>
+            <div class="field"><label class="label" for="track2">Spacing</label><div class="unit" data-u="mm"><input type="number" id="track2" min="-5" max="30" step="0.5"></div></div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="gap">Gap to line 1</label><div class="unit" data-u="mm"><input type="number" id="gap" min="0" max="120" step="1"></div></div>
+            <div class="field"><label class="label" for="offY">Move block</label><div class="unit" data-u="mm"><input type="number" id="offY" min="-80" max="80" step="1"></div></div>
+          </div>
+          <div class="field">
+            <span class="label">Divider line</span>
+            <div class="seg" data-key="divider">
+              <button type="button" id="dv-on" data-val="1">On</button>
+              <button type="button" id="dv-off" data-val="0">Off</button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="divT">Line thickness</label><div class="unit" data-u="mm"><input type="number" id="divT" min="0.8" max="8" step="0.1"></div></div>
+            <div class="field"><label class="label" for="divL">Line length</label><div class="unit" data-u="%"><input type="number" id="divL" min="10" max="100" step="1"></div></div>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Face plate</summary>
+        <div class="sec">
+          <div class="row">
+            <div class="field"><label class="label" for="T">Thickness</label><div class="unit" data-u="mm"><input type="number" id="T" min="1.5" max="6" step="0.1"></div></div>
+            <div class="field"><label class="label" for="radius">Corner radius</label><div class="unit" data-u="mm"><input type="number" id="radius" min="0" max="80" step="0.5"></div></div>
+          </div>
+          <div class="field">
+            <span class="label">Front edge</span>
+            <div class="seg" data-key="edge">
+              <button type="button" id="ed-sq" data-val="square">Square</button>
+              <button type="button" id="ed-ch" data-val="chamfer">Chamfer</button>
+              <button type="button" id="ed-rd" data-val="round">Rounded</button>
+            </div>
+          </div>
+          <div class="row" id="edge-row">
+            <div class="field"><label class="label" for="edgeSize">Chamfer / round size</label><div class="unit" data-u="mm"><input type="number" id="edgeSize" min="0.25" max="5" step="0.25"></div></div>
+          </div>
+          <p class="hintline">Corner radius rounds the four corners seen from the front. Front edge sets the profile all the way round: a 45° chamfer or a rounded edge. Pick Chamfer or Rounded to set its size, up to <b id="edge-max">2.4</b> mm on this plate (thickness minus 0.6 mm). To make the plate stick out past the diffuser, use <b>Face plate overhang</b> under Diffuser shell.</p>
+          <div class="field">
+            <span class="label">Colour</span>
+            <div class="swatches" id="swatches"></div>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Diffuser shell</summary>
+        <div class="sec">
+          <div class="row">
+            <div class="field"><label class="label" for="F">Front</label><div class="unit" data-u="mm"><input type="number" id="F" min="0.8" max="3" step="0.1"></div></div>
+            <div class="field"><label class="label" for="SW">Sides</label><div class="unit" data-u="mm"><input type="number" id="SW" min="1.2" max="4" step="0.1"></div></div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="overhang">Face plate overhang (each side)</label><div class="unit" data-u="mm"><input type="number" id="overhang" min="0" max="40" step="0.5"></div></div>
+          </div>
+          <p class="hintline">With overhang above 0 the diffuser box is made smaller, so the face plate sticks out past it on every side. The glowing sides sit back in shadow, closer to the halo look in your first photo.</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Wall fixing</summary>
+        <div class="sec">
+          <div class="field">
+            <span class="label">Screw holes in back panel</span>
+            <div class="seg" data-key="holes">
+              <button type="button" id="ho-2" data-val="2">2 holes</button>
+              <button type="button" id="ho-4" data-val="4">4 holes</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label">Hole type</span>
+            <div class="seg" data-key="holeType">
+              <button type="button" id="ht-cs" data-val="countersunk">Countersunk</button>
+              <button type="button" id="ht-kh" data-val="keyhole">Keyhole</button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="holeD">Screw size</label><div class="unit" data-u="mm"><input type="number" id="holeD" min="3" max="6" step="0.5"></div></div>
+            <div class="field"><label class="label" for="holeInset">From edge</label><div class="unit" data-u="mm"><input type="number" id="holeInset" min="8" max="80" step="1"></div></div>
+          </div>
+          <p class="hintline">The front is locked by an M3 grub screw in an M3 heat-set brass insert, recessed into the bottom of the shell.</p>
+        </div>
+      </details>
+
+      <dl class="spec" id="spec"></dl>
+
+      <div class="btns">
+        <button type="button" class="btn primary" id="copy">Copy settings</button>
+        <button type="button" class="btn" id="reset-design">Reset design</button>
+      </div>
+      <p class="hintline" id="copy-msg">Save these settings to reuse the design later, or to generate the STL files.</p>
+      <textarea id="json" readonly hidden aria-label="Design settings"></textarea>
+    </aside>
+  </section>
+
+  <section class="drawings">
+    <figure class="wide">
+      <div class="fig-head"><h2>Front elevation</h2><span class="scale">mm</span></div>
+      <svg id="elev" role="img" aria-label="Front elevation with dimensions"></svg>
+      <figcaption>Cap heights are on the left and line widths below. The grey dashed line marks where the edge profile starts. The amber dashed line is the outline of the diffuser box behind, shown when the face plate overhangs it.</figcaption>
+    </figure>
+    <figure>
+      <div class="fig-head"><h2>Bottom-edge section</h2><span class="scale">through centre</span></div>
+      <svg id="section" role="img" aria-label="Cross-section through the bottom edge"></svg>
+      <figcaption>The shell's sides run back to the wall, so the box is closed. A silicone cord on the back panel's rim seals the joint, and the grub screw tip locks into a hole in the back panel's arm.</figcaption>
+    </figure>
+    <figure>
+      <div class="fig-head"><h2>Back panel</h2><span class="scale">viewed from the front</span></div>
+      <svg id="back" role="img" aria-label="Back panel with screw holes, LED rows and cable entry"></svg>
+      <figcaption>Screw this to the wall first and wire the LEDs. The shell then slides over it.</figcaption>
+    </figure>
+  </section>
+
+  <section class="parts">
+    <h2>Parts</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Part</th><th>Print in</th><th>Size (mm)</th><th>Notes</th></tr></thead>
+        <tbody id="parts"></tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div><h3>Fitting order</h3><ol><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Push the shell over the rim and silicone cord until it meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
+      <div><h3>Outdoors</h3><p>Print in ASA or PETG for UV and heat resistance. PLA will warp on a sunny wall. Leave a 2 mm weep hole at the lowest corner of the shell.</p></div>
+      <div><h3>Letter islands</h3><p>The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. The diffuser's raised letters are slotted around them, so the bridges can't be seen from the front.</p></div>
+    </div>
+  </section>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script>
+(function () {
+  const FONTS = [
+    ['Jost', 'Geometric sans', [400, 500, 600, 700]],
+    ['Montserrat', 'Wide sans', [400, 500, 600, 700]],
+    ['Outfit', 'Soft geometric', [400, 500, 600, 700]],
+    ['Josefin Sans', 'Art deco sans', [400, 500, 600, 700]],
+    ['Oswald', 'Condensed sans', [400, 500, 600, 700]],
+    ['Bebas Neue', 'Tall condensed caps', [400]],
+    ['Roboto Slab', 'Slab serif', [400, 500, 600, 700]],
+    ['Playfair Display', 'High-contrast serif', [400, 500, 600, 700]],
+    ['DM Serif Display', 'Display serif', [400]],
+    ['Cinzel', 'Roman capitals', [400, 500, 600, 700]]
+  ];
+  const WNAMES = { 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold' };
+  const PLATES = [
+    { id: 'black', name: 'Jet black', ral: 'RAL 9005', hex: '#141416' },
+    { id: 'anth', name: 'Anthracite', ral: 'RAL 7016', hex: '#383e42' },
+    { id: 'navy', name: 'Slate navy', ral: 'RAL 5011', hex: '#1c2a3a' }
+  ];
+  const DEF = {
+    line1: '11A', f1: 'Jost', w1: 500, sizes: [78, 78, 78], align: 'baseline', track1: 2,
+    line2: 'STAKEFORD ROAD', f2: 'Jost', w2: 600, cap2: 14, track2: 3,
+    gap: 22, offY: 0, divider: true, divT: 2.5, divL: 70,
+    W: 250, H: 180, D: 30, T: 3, edge: 'chamfer', edgeSize: 2, radius: 6, overhang: 0, F: 1.6, SW: 2,
+    holes: 4, holeType: 'countersunk', holeD: 4, holeInset: 20,
+    plate: '#141416'
+  };
+  const VIEW = { night: true, exploded: false };
+  const KEY = 'plaque-designer-v3';
+  let S = JSON.parse(JSON.stringify(DEF));
+  try {
+    let saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (!saved) {
+      saved = JSON.parse(localStorage.getItem('plaque-designer-v2') || 'null');
+      if (saved && saved.chamfer != null) { saved.edgeSize = saved.chamfer || 2; saved.edge = saved.chamfer > 0 ? 'chamfer' : 'square'; delete saved.chamfer; }
+    }
+    if (saved) S = Object.assign(S, saved);
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const fx = (v, d = 1) => (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toString();
+
+  // ---------- derived geometry ----------
+  function geo() {
+    const o = Math.max(0, Math.min(S.overhang, (Math.min(S.W, S.H) - 60) / 2));
+    const Ws = S.W - 2 * o, Hs = S.H - 2 * o;
+    const R = Math.max(0, Math.min(S.radius, Math.min(S.W, S.H) / 2 - 1));
+    const Rs = Math.max(0, R - o);
+    const e = S.edge === 'square' ? 0 : Math.max(0, Math.min(S.edgeSize, S.T - 0.6));
+    const Wp = Ws - 2 * S.SW - 0.4, Hp = Hs - 2 * S.SW - 0.4, Rp = Math.max(0, Rs - S.SW - 0.2);
+    const zDF = S.D - S.T - S.F;                 // rear face of diffuser front wall
+    const throw_ = zDF - 3 - 1.6;                 // LED surface to diffuser
+    const rows = Math.max(2, Math.round((Hp - 40) / 45));
+    const rowYs = []; const span = Hp / 2 - 30;
+    for (let i = 0; i < rows; i++) rowYs.push(rows === 1 ? 0 : -span + (2 * span) * i / (rows - 1));
+    const i = S.holeInset, hx = Wp / 2 - i, hy = Hp / 2 - i;
+    const holes = S.holes === 4 ? [[-hx, hy], [hx, hy], [-hx, -hy], [hx, -hy]]
+      : S.holeType === 'keyhole' ? [[-hx, hy], [hx, hy]] : [[-hx, 0], [hx, 0]];
+    const cable = [0, (rowYs[0] + rowYs[1]) / 2];
+    const ledLen = Wp - 30;
+    return { o, Ws, Hs, R, Rs, e, Wp, Hp, Rp, zDF, throw_, rowYs, holes, cable, ledLen };
+  }
+
+  // ---------- lettering ----------
+  const capCache = {};
+  function capRatio(ctx, f, w) {
+    const k = f + w; if (capCache[k]) return capCache[k];
+    ctx.font = w + ' 100px "' + f + '"';
+    const m = ctx.measureText('H');
+    const r = (m.actualBoundingBoxAscent || 70) / 100;
+    if (document.fonts.check(w + ' 100px "' + f + '"')) capCache[k] = r;
+    return r;
+  }
+  const font = (w, px, f) => w + ' ' + px + 'px "' + f + '", sans-serif';
+  function drawFace(ctx, k, mode) {
+    const W = S.W * k, H = S.H * k;
+    ctx.save();
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = mode === 'map' ? S.plate : mode === 'emissive' ? '#000' : '#e6e4de';
+    ctx.fillRect(0, 0, W, H);
+    if (mode === 'diffuser') { ctx.shadowColor = 'rgba(0,0,0,.22)'; ctx.shadowBlur = 1.4 * k; ctx.shadowOffsetY = 0.6 * k; }
+    if (mode === 'emissive') { ctx.shadowColor = 'rgba(255,214,160,.85)'; ctx.shadowBlur = 1.1 * k; }
+    ctx.fillStyle = mode === 'map' ? '#f1ede4' : mode === 'emissive' ? '#ffffff' : '#fbfaf7';
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+
+    const chars = [...S.line1.toUpperCase()];
+    const r1 = capRatio(ctx, S.f1, S.w1);
+    const caps = chars.map((c, i) => S.sizes[i] || S.sizes[0] || 60);
+    const h1 = chars.length ? Math.max(...caps.filter((v, i) => chars[i] !== ' '), 1) : 0;
+    const widths = chars.map((c, i) => { ctx.font = font(S.w1, caps[i] / r1 * k, S.f1); return ctx.measureText(c).width; });
+    const tr1 = S.track1 * k;
+    const tot1 = widths.reduce((a, b) => a + b, 0) + tr1 * Math.max(0, chars.length - 1);
+    const block = h1 + S.gap + S.cap2;
+    const top = (S.H - block) / 2 + S.offY;
+    let x = (W - tot1) / 2;
+    chars.forEach((c, i) => {
+      const base = S.align === 'top' ? top + caps[i] : S.align === 'centre' ? top + (h1 + caps[i]) / 2 : top + h1;
+      ctx.font = font(S.w1, caps[i] / r1 * k, S.f1);
+      ctx.fillText(c, x, base * k);
+      x += widths[i] + tr1;
+    });
+    if (S.divider) {
+      const L = S.W * S.divL / 100, y = top + h1 + S.gap / 2;
+      ctx.fillRect((S.W - L) / 2 * k, (y - S.divT / 2) * k, L * k, S.divT * k);
+    }
+    const r2 = capRatio(ctx, S.f2, S.w2);
+    ctx.font = font(S.w2, S.cap2 / r2 * k, S.f2);
+    const t2 = [...S.line2.toUpperCase()], tr2 = S.track2 * k;
+    const w2 = t2.reduce((a, c) => a + ctx.measureText(c).width, 0) + tr2 * Math.max(0, t2.length - 1);
+    const base2 = top + h1 + S.gap + S.cap2;
+    x = (W - w2) / 2;
+    t2.forEach(c => { ctx.fillText(c, x, base2 * k); x += ctx.measureText(c).width + tr2; });
+    ctx.restore();
+    return { top, h1, base1: top + h1, w1: tot1 / k, top2: top + h1 + S.gap, base2, w2: w2 / k };
+  }
+
+  // ---------- controls ----------
+  function fillWeights(sel, fam, cur) {
+    const ws = (FONTS.find(f => f[0] === fam) || FONTS[0])[2];
+    sel.innerHTML = ws.map(w => '<option value="' + w + '">' + WNAMES[w] + '</option>').join('');
+    const pick = ws.includes(cur) ? cur : ws.reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+    sel.value = pick; sel.disabled = ws.length === 1; return pick;
+  }
+  ['f1', 'f2'].forEach(id => {
+    $(id).innerHTML = FONTS.map(f => '<option value="' + f[0] + '">' + f[0] + ' · ' + f[1] + '</option>').join('');
+  });
+  function renderChars() {
+    const chars = [...S.line1.toUpperCase()];
+    S.sizes = chars.map((c, i) => S.sizes[i] || S.sizes[S.sizes.length - 1] || 78);
+    $('chars').innerHTML = chars.map((c, i) => c === ' ' ? '' :
+      '<label class="ch" for="ch-' + i + '"><b style="font-family:\'' + S.f1 + '\'">' + c.replace(/[<>&"]/g, '') + '</b>' +
+      '<span class="unit" data-u="mm"><input type="number" id="ch-' + i + '" data-i="' + i + '" min="5" max="400" step="1" value="' + S.sizes[i] + '"></span></label>').join('');
+  }
+  $('chars').addEventListener('input', e => {
+    const i = +e.target.dataset.i, v = parseFloat(e.target.value);
+    if (!isNaN(v) && v > 0) { S.sizes[i] = v; changed(false); }
+  });
+  $('size-all').addEventListener('input', e => {
+    const v = parseFloat(e.target.value); if (isNaN(v) || v <= 0) return;
+    S.sizes = S.sizes.map(() => v); renderChars(); changed(false);
+  });
+
+  const NUMS = { track1: 0, cap2: 0, track2: 0, gap: 0, offY: 0, divT: 0, divL: 0, W: 1, H: 1, D: 1, T: 1, edgeSize: 1, radius: 1, overhang: 1, F: 1, SW: 1, holeD: 1, holeInset: 1 };
+  Object.keys(NUMS).forEach(k => {
+    const el = $(k);
+    el.addEventListener('input', () => { const v = parseFloat(el.value); if (!isNaN(v)) { S[k] = v; changed(!!NUMS[k], true); } });
+    el.addEventListener('change', () => {
+      let v = parseFloat(el.value); if (isNaN(v)) v = DEF[k];
+      v = Math.min(+el.max, Math.max(+el.min, v)); el.value = v; S[k] = v; changed(!!NUMS[k]);
+    });
+  });
+  $('line1').addEventListener('input', e => { S.line1 = e.target.value.toUpperCase(); renderChars(); changed(false); });
+  $('line2').addEventListener('input', e => { S.line2 = e.target.value.toUpperCase(); changed(false); });
+  $('f1').addEventListener('change', e => { S.f1 = e.target.value; S.w1 = fillWeights($('w1'), S.f1, S.w1); renderChars(); loadFonts().then(() => changed(false)); });
+  $('f2').addEventListener('change', e => { S.f2 = e.target.value; S.w2 = fillWeights($('w2'), S.f2, S.w2); loadFonts().then(() => changed(false)); });
+  $('w1').addEventListener('change', e => { S.w1 = +e.target.value; loadFonts().then(() => changed(false)); });
+  $('w2').addEventListener('change', e => { S.w2 = +e.target.value; loadFonts().then(() => changed(false)); });
+
+  const sw = $('swatches');
+  PLATES.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'swatch'; b.id = 'pl-' + p.id; b.dataset.hex = p.hex;
+    b.innerHTML = '<i style="background:' + p.hex + '"></i><span>' + p.name + '</span><small>' + p.ral + '</small>';
+    b.addEventListener('click', () => { S.plate = p.hex; syncPressed(); changed(false); });
+    sw.appendChild(b);
+  });
+
+  const SEGS = { align: ['s', 0], divider: ['b', 0], edge: ['s', 1], holes: ['n', 1], holeType: ['s', 1], night: ['b', 2], exploded: ['b', 2] };
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const key = seg.dataset.key, [t, kind] = SEGS[key];
+      const v = t === 'b' ? b.dataset.val === '1' : t === 'n' ? +b.dataset.val : b.dataset.val;
+      if (kind === 2) VIEW[key] = v; else S[key] = v;
+      syncPressed();
+      if (kind !== 2) changed(kind === 1);
+    });
+  });
+  function syncPressed() {
+    document.querySelectorAll('.seg').forEach(seg => {
+      const key = seg.dataset.key, [t, kind] = SEGS[key], cur = kind === 2 ? VIEW[key] : S[key];
+      seg.querySelectorAll('button').forEach(b => {
+        const v = t === 'b' ? b.dataset.val === '1' : t === 'n' ? +b.dataset.val : b.dataset.val;
+        b.setAttribute('aria-pressed', v === cur ? 'true' : 'false');
+      });
+    });
+    sw.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.hex === S.plate ? 'true' : 'false'));
+    $('edgeSize').disabled = S.edge === 'square';
+    $('edge-row').hidden = S.edge === 'square';
+  }
+  function syncInputs() {
+    $('line1').value = S.line1; $('line2').value = S.line2;
+    $('f1').value = S.f1; $('f2').value = S.f2;
+    S.w1 = fillWeights($('w1'), S.f1, S.w1); S.w2 = fillWeights($('w2'), S.f2, S.w2);
+    Object.keys(NUMS).forEach(k => { $(k).value = S[k]; });
+    $('size-all').value = S.sizes[0] || 78;
+    renderChars(); syncPressed();
+  }
+  $('reset-design').addEventListener('click', () => { S = JSON.parse(JSON.stringify(DEF)); syncInputs(); loadFonts().then(() => changed(true)); });
+  $('copy').addEventListener('click', () => {
+    const txt = JSON.stringify(S, null, 2), ta = $('json'), msg = $('copy-msg');
+    ta.value = txt;
+    const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); msg.textContent = 'Select the text below and copy it.'; };
+    try {
+      navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Copied to the clipboard.'; }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  // ---------- drawings ----------
+  const elevCanvas = document.createElement('canvas');
+  const L = (x1, y1, x2, y2) => '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>';
+  const T = (x, y, s, rot, anchor) => '<text x="' + x + '" y="' + y + '"' + (rot ? ' transform="rotate(-90 ' + x + ' ' + y + ')"' : '') + ' text-anchor="' + (anchor || 'middle') + '">' + s + '</text>';
+  function dimH(x1, x2, y, label) { return L(x1, y, x2, y) + L(x1, y - 3, x1, y + 3) + L(x2, y - 3, x2, y + 3) + '<g stroke="none">' + T((x1 + x2) / 2, y - 3, label) + '</g>'; }
+  function dimV(x, y1, y2, label) { return L(x, y1, x, y2) + L(x - 3, y1, x + 3, y1) + L(x - 3, y2, x + 3, y2) + '<g stroke="none">' + T(x - 3, (y1 + y2) / 2, label, true) + '</g>'; }
+
+  function drawElevation() {
+    const k = Math.min(4, 1400 / Math.max(S.W, S.H));
+    elevCanvas.width = Math.round(S.W * k); elevCanvas.height = Math.round(S.H * k);
+    const m = drawFace(elevCanvas.getContext('2d'), k, 'map');
+    const g = geo(), W = S.W, H = S.H, c = g.e, fs = Math.max(6, Math.min(W, H) / 28);
+    const sv = $('elev');
+    sv.setAttribute('viewBox', (-40) + ' ' + (-30) + ' ' + (W + 80) + ' ' + (H + 62));
+    const capTop1 = m.base1 - m.h1;
+    const rr = (i, r, stroke, dash, sw) => '<rect x="' + i + '" y="' + i + '" width="' + (W - 2 * i) + '" height="' + (H - 2 * i) + '" rx="' + r + '" fill="none" stroke="' + stroke + '" stroke-width="' + sw + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>';
+    sv.innerHTML =
+      '<defs><clipPath id="plateclip"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="' + g.R + '"/></clipPath></defs>' +
+      '<image href="' + elevCanvas.toDataURL('image/png') + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" clip-path="url(#plateclip)"/>' +
+      rr(0, g.R, 'var(--fg)', '', .5) +
+      (c > 0 ? rr(c, Math.max(0, g.R - c), '#9aa3a9', '2 1.5', .35) : '') +
+      (g.o > 0 ? rr(g.o, g.Rs, 'var(--accent)', '3 2', .45) : '') +
+      '<g stroke="var(--muted)" stroke-width=".4" fill="var(--muted)" font-family="IBM Plex Mono, monospace" font-size="' + fs + '">' +
+        dimH(0, W, -14, fx(W)) +
+        '<g transform="translate(' + (W + 20) + ',0)">' + L(0, 0, 0, H) + L(-3, 0, 3, 0) + L(-3, H, 3, H) + '<g stroke="none">' + T(fs + 1, H / 2, fx(H), true) + '</g></g>' +
+        dimV(-12, capTop1, m.base1, fx(m.h1)) +
+        dimV(-12, m.top2, m.base2, fx(S.cap2)) +
+        dimH((W - m.w1) / 2, (W + m.w1) / 2, H + 12, 'line 1 · ' + fx(m.w1)) +
+        dimH((W - m.w2) / 2, (W + m.w2) / 2, H + 12 + fs * 2.2, 'line 2 · ' + fx(m.w2)) +
+      '</g>';
+    return m;
+  }
+
+  function drawSection(m) {
+    const D = S.D, Tt = S.T, F = S.F, SW = S.SW, g = geo(), c = g.e, o = g.o;
+    const Hv = 45 + o, top = Hv + 3;
+    const y = h => Hv - h;          // show the bottom of the plaque; h measured up from the face plate's bottom edge
+    const zDF = g.zDF;
+    const R = (x, h0, w, hh, fill, stroke) => '<rect x="' + x + '" y="' + y(h0 + hh) + '" width="' + w + '" height="' + hh + '" fill="' + fill + '" stroke="' + (stroke || 'var(--fg)') + '" stroke-width=".25"/>';
+    const shell = 'var(--p-diff)', back = 'var(--p-back)', face = 'var(--p-face)';
+    const b0 = o + SW;              // inside floor of the shell
+    let s = '<defs><pattern id="hatch" width="2.4" height="2.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2.4" stroke="var(--muted)" stroke-width=".5"/></pattern></defs>';
+    s += '<rect x="-9" y="-3" width="9" height="' + (Hv + 17) + '" fill="url(#hatch)"/>' + L(0, -3, 0, Hv + 14).replace('/>', ' stroke="var(--muted)" stroke-width=".4"/>');
+    // back panel base, rim, arm
+    s += R(0, b0 + 0.2, 3, top - b0 - 0.2, back);
+    s += R(3, b0 + 0.2, 6, 2, back);
+    s += '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".9" fill="var(--fg)"/>';
+    s += R(3, b0 + 6.5, 10.4, 3, back) + R(16.6, b0 + 6.5, 2.4, 3, back);
+    // LED and light
+    s += R(3, o + 24, 1.6, 8, 'var(--led)');
+    s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + L(4.8, y(o + 28), zDF - .2, y(o + 28)) + L(4.8, y(o + 29), zDF - .2, y(o + 42)) + L(4.8, y(o + 27), zDF - .2, y(o + 15)) + '</g>';
+    // shell: bottom wall with hole, boss, front wall
+    s += R(0, o, 13.3, SW, shell) + R(16.7, o, zDF + F - 16.7, SW, shell);
+    s += R(11, b0, 1.9, 6, shell) + R(17.1, b0, 1.9, 6, shell);
+    s += R(zDF, o, F, top - o, shell);
+    // insert + grub
+    s += R(12.9, b0 + 0.3, 4.2, 5.7, 'var(--brass)');
+    const gb = o + Math.max(0.5, SW - 1);
+    s += R(13.5, gb, 3, b0 + 9 - gb, 'var(--brass)');
+    s += '<g stroke="var(--fg)" stroke-width=".15" opacity=".55">' + [0, 1, 2, 3, 4, 5].map(i => L(13.5, y(gb + 1 + i * 1.5), 16.5, y(gb + 1.5 + i * 1.5))).join('') + '</g>';
+    // face plate with letter cut and edge profile
+    const zF = D - Tt;
+    const hb = S.H - m.base2, ht = hb + S.cap2;
+    const showLetter = hb < Hv;
+    const fTop = showLetter ? hb : top;
+    let edge = c > 0
+      ? (S.edge === 'round' ? ' A' + c + ' ' + c + ' 0 0 0 ' + D + ' ' + y(c) : ' L' + D + ' ' + y(c))
+      : ' L' + D + ' ' + y(0);
+    s += '<path d="M' + zF + ' ' + y(0) + ' L' + (D - c) + ' ' + y(0) + edge + ' L' + D + ' ' + y(fTop) + ' L' + zF + ' ' + y(fTop) + ' Z" fill="' + face + '" stroke="var(--p-face-stroke)" stroke-width=".25"/>';
+    if (showLetter) {
+      s += R(zF, hb, Tt, Math.min(ht, top) - hb, shell);
+      if (ht < top) s += R(zF, ht, Tt, top - ht, face, 'var(--p-face-stroke)');
+    }
+    // overhang dimension
+    if (o > 0) s += '<g stroke="var(--accent)" stroke-width=".25">' + L(zF - 2, y(0), zF - 2, y(o)) + L(zF - 3, y(0), zF - 1, y(0)) + L(zF - 3, y(o), zF - 1, y(o)) + '</g>';
+    // depth dimension
+    const dy = Hv + 10;
+    s += '<g stroke="var(--muted)" stroke-width=".25">' + L(0, dy, D, dy) + L(0, dy - 1.5, 0, dy + 1.5) + L(D, dy - 1.5, D, dy + 1.5) + '</g>';
+    s += '<text x="' + D / 2 + '" y="' + (dy + 4.5) + '" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="2.8" fill="var(--muted)">' + fx(D) + '</text>';
+    // labels
+    const lx = D + 12;
+    const edgeTxt = c > 0 ? (S.edge === 'round' ? 'R' + fx(c) + ' edge' : fx(c) + ' chamfer') : 'square edge';
+    const labels = [
+      showLetter ? [D - Tt / 2, (hb + Math.min(ht, Hv)) / 2, 'Lit letter (diffuser, ' + fx(Tt) + ' raised)'] : null,
+      [D - Tt / 2, Math.min(o + 10, fTop / 2), 'Face plate ' + fx(Tt) + ' · ' + edgeTxt],
+      [zDF + F / 2, o + 36, 'Diffuser front ' + fx(F)],
+      [3.8, o + 28, 'LED strip · ' + fx(g.throw_) + ' throw'],
+      [8, b0 + 8, 'Back panel arm, Ø3.2 hole'],
+      [6, b0 + 0.2, 'Silicone cord seal'],
+      [15, b0 + 4, 'M3 heat-set insert'],
+      [24, o + SW / 2, 'Diffuser side ' + fx(SW)],
+      [15, gb + 0.5, 'M3 × 10 grub, recessed'],
+      o > 0 ? [zF - 2, o / 2, 'Overhang ' + fx(o)] : null
+    ].filter(Boolean).sort((a, b) => b[1] - a[1]);
+    const step = (Hv + 7) / labels.length;
+    s += '<g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="2.7" fill="var(--fg)">';
+    labels.forEach((l, i) => {
+      const ly = 1 + i * step + step / 2;
+      s += '<polyline points="' + l[0] + ',' + y(l[1]) + ' ' + (D + 4) + ',' + ly + ' ' + (lx - 1) + ',' + ly + '" fill="none" stroke="var(--muted)" stroke-width=".18"/>';
+      s += '<text x="' + lx + '" y="' + (ly + 0.9) + '">' + l[2] + '</text>';
+    });
+    s += '<text x="-8.5" y="-0.5" font-size="2.4" fill="var(--muted)">WALL</text></g>';
+    const sv = $('section');
+    sv.setAttribute('viewBox', '-12 -4 ' + (D + 12 + 52) + ' ' + (Hv + 21));
+    sv.innerHTML = s;
+  }
+
+  function drawBack() {
+    const g = geo(), Wp = g.Wp, Hp = g.Hp, X = x => Wp / 2 + x, Y = y => Hp / 2 - y;
+    const fs = Math.max(5, Math.min(Wp, Hp) / 26), d = S.holeD;
+    let s = '<rect x="0" y="0" width="' + Wp + '" height="' + Hp + '" rx="' + g.Rp + '" fill="var(--p-back)" fill-opacity=".35" stroke="var(--fg)" stroke-width=".5"/>';
+    s += '<rect x="2" y="2" width="' + (Wp - 4) + '" height="' + (Hp - 4) + '" rx="' + Math.max(0, g.Rp - 2) + '" fill="none" stroke="var(--fg)" stroke-width=".3"/>';
+    s += '<rect x="1" y="1" width="' + (Wp - 2) + '" height="' + (Hp - 2) + '" rx="' + Math.max(0, g.Rp - 1) + '" fill="none" stroke="var(--muted)" stroke-width=".4" stroke-dasharray="1.5 1.2"/>';
+    g.rowYs.forEach(ry => { s += '<rect x="' + X(-g.ledLen / 2) + '" y="' + (Y(ry) - 4) + '" width="' + g.ledLen + '" height="8" fill="var(--led)" fill-opacity=".55" stroke="var(--led)" stroke-width=".3"/>'; });
+    g.holes.forEach(([hx, hy]) => {
+      const cx = X(hx), cy = Y(hy);
+      if (S.holeType === 'keyhole') {
+        const R = d + 0.5;
+        s += '<path d="M' + (cx - d / 2) + ' ' + (cy - R * .8) + ' V' + (cy - 9) + ' A' + d / 2 + ' ' + d / 2 + ' 0 0 1 ' + (cx + d / 2) + ' ' + (cy - 9) + ' V' + (cy - R * .8) + ' A' + R + ' ' + R + ' 0 1 1 ' + (cx - d / 2) + ' ' + (cy - R * .8) + 'Z" fill="var(--fg)"/>';
+      } else {
+        s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + d + '" fill="none" stroke="var(--fg)" stroke-width=".4"/><circle cx="' + cx + '" cy="' + cy + '" r="' + d / 2 + '" fill="var(--fg)"/>';
+      }
+    });
+    s += '<circle cx="' + X(g.cable[0]) + '" cy="' + Y(g.cable[1]) + '" r="4" fill="var(--bg)" stroke="var(--fg)" stroke-width=".4"/>';
+    s += '<rect x="' + (Wp / 2 - 6) + '" y="' + (Hp - 9.3) + '" width="12" height="3" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>';
+    s += '<g font-family="IBM Plex Mono, monospace" font-size="' + fs * .8 + '" fill="var(--fg)">' +
+      T(X(g.cable[0]) + 7, Y(g.cable[1]) + fs * .3, 'cable Ø8', false, 'start') +
+      T(Wp / 2, Hp - 11, 'grub arm', false) + '</g>';
+    const hs = g.holes.map(h => h[0]), vs = g.holes.map(h => h[1]);
+    const x1 = Math.min(...hs), x2 = Math.max(...hs), y1 = Math.max(...vs), y2 = Math.min(...vs);
+    s += '<g stroke="var(--muted)" stroke-width=".4" fill="var(--muted)" font-family="IBM Plex Mono, monospace" font-size="' + fs + '">';
+    s += dimH(X(x1), X(x2), -10, fx(x2 - x1));
+    if (y1 !== y2) s += '<g transform="translate(' + (Wp + 12) + ',0)">' + L(0, Y(y1), 0, Y(y2)) + L(-3, Y(y1), 3, Y(y1)) + L(-3, Y(y2), 3, Y(y2)) + '<g stroke="none">' + T(fs + 1, (Y(y1) + Y(y2)) / 2, fx(y1 - y2), true) + '</g></g>';
+    s += dimH(0, Wp, Hp + 12, fx(Wp) + ' × ' + fx(Hp));
+    s += '</g>';
+    const sv = $('back');
+    sv.setAttribute('viewBox', '-24 -24 ' + (Wp + 52) + ' ' + (Hp + 46));
+    sv.innerHTML = s;
+  }
+
+  function drawInfo(m) {
+    const g = geo(), c = g.e;
+    const eMax = Math.max(0.25, Math.round((S.T - 0.6) * 100) / 100);
+    $('edgeSize').max = eMax; $('edge-max').textContent = fx(eMax, 2);
+    const edgeTxt = c > 0 ? (S.edge === 'round' ? fx(c) + ' mm rounded' : fx(c) + ' mm × 45° chamfer') : 'square';
+    $('h-title').textContent = (S.line1 + ' ' + S.line2.toLowerCase().replace(/\b\w/g, x => x.toUpperCase())).trim() || 'House plaque';
+    $('h-dims').innerHTML = '<span><b>' + fx(S.W) + '</b> W</span><span><b>' + fx(S.H) + '</b> H</span><span><b>' + fx(S.D) + '</b> D mm</span>';
+    $('spec').innerHTML = [
+      ['Line 1 tallest', fx(m.h1) + ' mm'], ['Line 2', fx(S.cap2) + ' mm'],
+      ['Face plate', fx(S.T) + ' mm'], ['Front edge', edgeTxt],
+      ['Corners', g.R > 0 ? 'R' + fx(g.R) + ' mm' : 'square'],
+      ['Overhang', g.o > 0 ? fx(g.o) + ' mm all round' : 'flush'],
+      ['Diffuser', fx(S.F) + ' front · ' + fx(S.SW) + ' sides'],
+      ['LED throw', fx(g.throw_) + ' mm'], ['LED strip', g.rowYs.length + ' rows · ' + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m']
+    ].map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('');
+    const perim = 2 * (g.Wp + g.Hp) / 1000;
+    $('parts').innerHTML = [
+      ['var(--p-face)', '1 · Face plate', 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + 'Glued to the diffuser.'],
+      ['var(--p-diff)', '2 · Diffuser shell', 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Raised letters ' + fx(S.T) + ' mm. Boss underneath for the M3 insert and grub screw.'],
+      ['var(--p-back)', '3 · Back panel', 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 9', '3 mm plate, 6 mm rim with a groove for 2 mm silicone cord. ' + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
+      ['var(--brass)', '4 · Hardware', 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.2 hole). ' + fx(perim, 2) + ' m of 2 mm silicone cord. ' + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
+    ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
+    // warnings
+    const w = [];
+    const usable = Math.min(S.W - 2 * Math.max(15, c + 8), g.Ws - 2 * S.SW - 6);
+    if (m.w1 > usable) w.push('Line 1 is ' + fx(m.w1) + ' mm wide, more than the ' + fx(usable) + ' mm that will light. Reduce the heights, spacing or overhang.');
+    if (m.w2 > usable) w.push('Line 2 is ' + fx(m.w2) + ' mm wide, more than the ' + fx(usable) + ' mm that will light. Reduce the cap height, spacing or overhang.');
+    const lit = g.o + S.SW + 4;
+    if (m.base1 - m.h1 < lit || m.base2 > S.H - lit) w.push('Some lettering sits over the diffuser\'s side walls or past them, so it won\'t light evenly. Reduce the overhang, the text sizes or the gap.');
+    else if (m.base1 - m.h1 < 12 || m.base2 > S.H - 12) w.push('The lettering comes within 12 mm of the top or bottom edge. Reduce the gap or heights, or adjust "Move block".');
+    if (S.overhang > g.o + 0.01) w.push('The overhang is limited to ' + fx(g.o) + ' mm at this plate size.');
+    if (S.radius > g.R + 0.01) w.push('The corner radius is limited to ' + fx(g.R) + ' mm at this plate size.');
+    if (g.throw_ < 14) w.push('Only ' + fx(g.throw_) + ' mm between the LEDs and the diffuser, so you may see bright spots. Aim for 18 mm or more by adding depth.');
+    if (S.F > 2.2) w.push('A diffuser front over 2.2 mm will look noticeably dimmer.');
+    if (S.edge !== 'square' && S.edgeSize > S.T - 0.6) w.push('The edge size is limited to ' + fx(S.T - 0.6) + ' mm on a ' + fx(S.T) + ' mm plate.');
+    if (/Playfair|DM Serif|Cinzel/.test(S.f1 + S.f2)) w.push('Fine serifs can be thinner than 1 mm at this size and may print poorly as cut-through letters.');
+    $('warnings').innerHTML = w.map(t => '<div class="warn">' + t + '</div>').join('');
+  }
+
+  // ---------- 3D ----------
+  const viewer = $('viewer'), canvas = $('scene');
+  let renderer = null;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); } catch (e) { renderer = null; }
+  let three = null;
+
+  function setupThree() {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#111');
+    const camera = new THREE.PerspectiveCamera(30, 1.6, 10, 8000);
+    const rig = new THREE.Group(); scene.add(rig);
+    const aniso = renderer.capabilities.getMaxAnisotropy();
+
+    const n = document.createElement('canvas'); n.width = n.height = 512;
+    const nc = n.getContext('2d'), id = nc.createImageData(512, 512);
+    for (let i = 0; i < id.data.length; i += 4) { const v = 110 + Math.random() * 90; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+    nc.putImageData(id, 0, 0);
+    for (let i = 0; i < 900; i++) { nc.fillStyle = 'rgba(' + (Math.random() < .5 ? '0,0,0' : '255,255,255') + ',' + (Math.random() * .12) + ')'; nc.beginPath(); nc.arc(Math.random() * 512, Math.random() * 512, 2 + Math.random() * 9, 0, 7); nc.fill(); }
+    const bump = new THREE.CanvasTexture(n); bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(6, 5);
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(2400, 1800), new THREE.MeshStandardMaterial({ color: '#d8d2c8', roughness: 1, bumpMap: bump, bumpScale: 1.6 }));
+    wall.receiveShadow = true; rig.add(wall);
+
+    const hemi = new THREE.HemisphereLight('#e3e9f2', '#6b6255', 0.7); scene.add(hemi);
+    const key = new THREE.DirectionalLight('#fff3e2', 1.5); key.position.set(-320, 420, 520); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -500, right: 500, top: 500, bottom: -500, near: 50, far: 2500 });
+    key.shadow.bias = -0.0004; scene.add(key);
+
+    const M = {
+      plateSide: new THREE.MeshStandardMaterial({ color: S.plate, roughness: .45 }),
+      chamfer: new THREE.MeshStandardMaterial({ color: S.plate, roughness: .3, metalness: .05 }),
+      face: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .42, emissive: new THREE.Color('#ffe0b5'), emissiveIntensity: 0 }),
+      diff: new THREE.MeshStandardMaterial({ color: '#f1efe9', roughness: .55, emissive: new THREE.Color('#ffc27a'), emissiveIntensity: 0 }),
+      diffFront: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .6, emissive: new THREE.Color('#ffc27a'), emissiveIntensity: 0 }),
+      back: new THREE.MeshStandardMaterial({ color: '#7d8389', roughness: .7 }),
+      led: new THREE.MeshBasicMaterial({ color: '#ffd38a' }),
+      hole: new THREE.MeshBasicMaterial({ color: '#1a1a1a' }),
+      csink: new THREE.MeshStandardMaterial({ color: '#4a4f54', roughness: .8 }),
+      brass: new THREE.MeshStandardMaterial({ color: '#c9a24e', metalness: .85, roughness: .3 }),
+      steel: new THREE.MeshStandardMaterial({ color: '#2b2d30', metalness: .7, roughness: .4 }),
+      halo: new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    };
+    const canv = { map: document.createElement('canvas'), emissive: document.createElement('canvas'), diffuser: document.createElement('canvas') };
+    three = { scene, camera, rig, M, canv, aniso, hemi, key, plaque: null, halo: null, parts: {}, texs: null };
+
+    // interaction
+    const DEFV = { yaw: 0.5, pitch: -0.08 };
+    let yaw = DEFV.yaw, pitch = DEFV.pitch, tYaw = yaw, tPitch = pitch, drag = null;
+    canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', e => {
+      if (!drag) return;
+      tYaw = Math.max(-1.3, Math.min(1.3, tYaw + (e.clientX - drag.x) * 0.006));
+      tPitch = Math.max(-0.45, Math.min(0.45, tPitch + (e.clientY - drag.y) * 0.004));
+      drag = { x: e.clientX, y: e.clientY };
+    });
+    const end = () => { drag = null; };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+    $('reset-view').addEventListener('click', () => { tYaw = DEFV.yaw; tPitch = DEFV.pitch; });
+
+    const resize = () => {
+      const w = viewer.clientWidth, h = viewer.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; fitCamera();
+    };
+    three.resize = resize;
+    new ResizeObserver(resize).observe(viewer);
+
+    let nv = 1, ev = 0;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    (function frame() {
+      const f = reduce ? 1 : 0.08;
+      yaw = lerp(yaw, tYaw, reduce ? 1 : 0.15); pitch = lerp(pitch, tPitch, reduce ? 1 : 0.15);
+      nv = lerp(nv, VIEW.night ? 1 : 0, f); ev = lerp(ev, VIEW.exploded ? 1 : 0, f);
+      rig.rotation.set(pitch, yaw, 0);
+      const P = three.parts;
+      if (P.face) {
+        P.face.position.z = 110 * ev;
+        P.shell.position.z = 60 * ev;
+        P.grub.position.set(0, -26 * ev, 60 * ev);
+      }
+      hemi.intensity = lerp(0.75, 0.07, nv);
+      key.intensity = lerp(1.5, 0.05, nv);
+      M.face.emissiveIntensity = 1.7 * nv;
+      M.diff.emissiveIntensity = 0.85 * nv;
+      M.diffFront.emissiveIntensity = 0.6 * nv;
+      M.halo.opacity = 0.8 * nv;
+      M.led.color.setRGB(lerp(.55, 1, nv), lerp(.5, .85, nv), lerp(.42, .55, nv));
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  }
+
+  function fitCamera() {
+    const c = three.camera, s = Math.max(S.W / 250, S.H / 180);
+    c.position.set(0, 0, 780 * s * Math.max(1, 1.45 / c.aspect));
+    c.updateProjectionMatrix();
+  }
+
+  // rounded-rectangle outlines, centred on 0,0
+  function rrPath(p, w, h, r) {
+    const x = -w / 2, y = -h / 2;
+    r = Math.max(0, Math.min(r, w / 2 - 0.01, h / 2 - 0.01));
+    if (r < 0.05) { p.moveTo(x, y); p.lineTo(x + w, y); p.lineTo(x + w, y + h); p.lineTo(x, y + h); p.lineTo(x, y); return p; }
+    p.moveTo(x + r, y); p.lineTo(x + w - r, y); p.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
+    p.lineTo(x + w, y + h - r); p.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+    p.lineTo(x + r, y + h); p.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
+    p.lineTo(x, y + r); p.absarc(x + r, y + r, r, Math.PI, 1.5 * Math.PI, false);
+    return p;
+  }
+  const rrShape = (w, h, r) => rrPath(new THREE.Shape(), w, h, r);
+  function ring(w, h, r, t) { const s = rrShape(w, h, r); s.holes.push(rrPath(new THREE.Path(), w - 2 * t, h - 2 * t, Math.max(0, r - t))); return s; }
+  const ext = (shape, depth, extra) => new THREE.ExtrudeGeometry(shape, Object.assign({ depth, bevelEnabled: false, curveSegments: 20 }, extra || {}));
+
+  function buildPlaque() {
+    if (!three) return;
+    const { rig, M } = three;
+    if (three.plaque) { three.plaque.traverse(o => { if (o.geometry) o.geometry.dispose(); }); rig.remove(three.plaque); }
+    if (three.halo) { three.halo.geometry.dispose(); rig.remove(three.halo); }
+    if (three.texs) Object.values(three.texs).forEach(t => t.dispose());
+
+    const W = S.W, H = S.H, D = S.D, Tt = S.T, F = S.F, SW = S.SW, g = geo(), c = g.e;
+    const kTex = Math.min(8, 2048 / Math.max(W, H));
+    Object.values(three.canv).forEach(cv => { cv.width = Math.round(W * kTex); cv.height = Math.round(H * kTex); });
+    // extruded shapes carry world-space UVs (mm), so map them onto the plate-sized artwork
+    const mk = cv => { const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.anisotropy = three.aniso; t.repeat.set(1 / W, 1 / H); t.offset.set(0.5, 0.5); return t; };
+    three.texs = { map: mk(three.canv.map), emissive: mk(three.canv.emissive), diffuser: mk(three.canv.diffuser) };
+    three.kTex = kTex;
+    M.face.map = three.texs.map; M.face.emissiveMap = three.texs.emissive; M.diffFront.map = three.texs.diffuser;
+    M.face.needsUpdate = M.diffFront.needsUpdate = true;
+
+    const plaque = new THREE.Group(); rig.add(plaque); three.plaque = plaque;
+    const box = (w, h, d, mat, x, y, z, parent) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+    const disc = (r, x, y, z, mat, parent, seg) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, seg || 28), mat); m.position.set(x, y, z); parent.add(m); return m; };
+
+    const mesh = (geom, mat, z, parent) => { const m = new THREE.Mesh(geom, mat); m.position.z = z; m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+
+    // back panel (stays on the wall)
+    const backG = new THREE.Group(); plaque.add(backG);
+    const Wp = g.Wp, Hp = g.Hp, Hs = g.Hs;
+    mesh(ext(rrShape(Wp, Hp, g.Rp), 3), M.back, 0, backG);
+    mesh(ext(ring(Wp, Hp, g.Rp, 2), 6), M.back, 3, backG);
+    box(12, 3, 16, M.back, 0, -Hs / 2 + SW + 8, 11, backG);
+    g.rowYs.forEach(y => box(g.ledLen, 8, 1.5, M.led, 0, y, 3.75, backG));
+    g.holes.forEach(([hx, hy]) => {
+      if (S.holeType === 'keyhole') {
+        disc(S.holeD + 0.5, hx, hy, 3.03, M.hole, backG);
+        box(S.holeD, 9, 0.05, M.hole, hx, hy + 4.5, 3.03, backG);
+        disc(S.holeD / 2, hx, hy + 9, 3.03, M.hole, backG);
+      } else {
+        disc(S.holeD, hx, hy, 3.02, M.csink, backG);
+        disc(S.holeD / 2, hx, hy, 3.04, M.hole, backG);
+      }
+    });
+    disc(4, g.cable[0], g.cable[1], 3.03, M.hole, backG);
+
+    // diffuser shell (sides run back to the wall: closed box)
+    const shell = new THREE.Group(); plaque.add(shell);
+    const zDF = g.zDF;
+    mesh(ext(rrShape(g.Ws, g.Hs, g.Rs), F), [M.diffFront, M.diff], zDF, shell);
+    mesh(ext(ring(g.Ws, g.Hs, g.Rs, SW), zDF), M.diff, 0, shell);
+    box(8, 6, 8, M.diff, 0, -Hs / 2 + SW + 3, 15, shell);
+    const ins = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 5.7, 16), M.brass);
+    ins.position.set(0, -Hs / 2 + SW + 3.15, 15); shell.add(ins);
+
+    // face plate: rounded corners plus optional chamfered or rounded front edge
+    const face = new THREE.Group(); plaque.add(face);
+    if (c > 0.01) {
+      mesh(ext(rrShape(W, H, g.R), Tt - c - 0.01), M.plateSide, D - Tt, face);
+      const capG = ext(rrShape(W - 2 * c, H - 2 * c, Math.max(0, g.R - c)), 0.01,
+        { bevelEnabled: true, bevelThickness: c, bevelSize: c, bevelOffset: 0, bevelSegments: S.edge === 'round' ? 8 : 1 });
+      mesh(capG, [M.face, M.chamfer], D - c - 0.01, face);
+    } else {
+      mesh(ext(rrShape(W, H, g.R), Tt), [M.face, M.plateSide], D - Tt, face);
+    }
+
+    // grub screw (moves with the shell in exploded view)
+    const grub = new THREE.Group(); plaque.add(grub);
+    const gb = Math.max(0.5, SW - 1);
+    const gm = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 10, 14), M.steel);
+    gm.position.set(0, -Hs / 2 + gb + 5, 15); grub.add(gm);
+
+    // halo on wall
+    const hw = W + 460, hh = H + 380;
+    const hc = document.createElement('canvas'); hc.width = 1024; hc.height = Math.round(1024 * hh / hw);
+    const hx = hc.getContext('2d'), pw = W / hw * hc.width, ph = H / hh * hc.height;
+    [[140, .5], [70, .65], [28, .85], [10, 1]].forEach(([b, a]) => {
+      hx.shadowColor = 'rgba(255,196,120,' + a + ')'; hx.shadowBlur = b; hx.shadowOffsetX = 4000;
+      hx.fillStyle = '#fff'; hx.fillRect((hc.width - pw) / 2 - 4000 - 4, (hc.height - ph) / 2 - 4, pw + 8, ph + 8);
+    });
+    if (M.halo.map) M.halo.map.dispose();
+    M.halo.map = new THREE.CanvasTexture(hc); M.halo.needsUpdate = true;
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(hw, hh), M.halo); halo.position.z = 0.5; rig.add(halo); three.halo = halo;
+
+    three.parts = { face, shell, grub, backG };
+    if (three.resize) three.resize();
+  }
+
+  function paintTextures() {
+    if (!three || !three.texs) return;
+    const k = three.kTex;
+    drawFace(three.canv.map.getContext('2d'), k, 'map');
+    drawFace(three.canv.emissive.getContext('2d'), k, 'emissive');
+    drawFace(three.canv.diffuser.getContext('2d'), k, 'diffuser');
+    Object.values(three.texs).forEach(t => t.needsUpdate = true);
+    three.M.plateSide.color.set(S.plate); three.M.chamfer.color.set(S.plate);
+  }
+
+  let rebuildTimer = null;
+  function changed(geometry, live) {
+    save();
+    const m = drawElevation();
+    drawSection(m); drawBack(); drawInfo(m);
+    if (geometry) {
+      clearTimeout(rebuildTimer);
+      rebuildTimer = setTimeout(() => { buildPlaque(); paintTextures(); }, live ? 180 : 0);
+    } else paintTextures();
+  }
+
+  function loadFonts() {
+    const p = Promise.all([document.fonts.load(S.w1 + ' 100px "' + S.f1 + '"', S.line1 || 'H'), document.fonts.load(S.w2 + ' 100px "' + S.f2 + '"', S.line2 || 'H')]).catch(() => {});
+    return Promise.race([p, new Promise(r => setTimeout(r, 2500))]).then(() => { Object.keys(capCache).forEach(k => delete capCache[k]); });
+  }
+
+  // ---------- boot ----------
+  syncInputs();
+  if (!renderer || typeof THREE === 'undefined') {
+    const d = document.createElement('div'); d.className = 'webgl-fail';
+    d.textContent = 'This browser could not start the 3D view. The drawings below still show the design.';
+    viewer.appendChild(d);
+  } else setupThree();
+  changed(true);
+  loadFonts().then(() => changed(true));
+})();
+</script>
+</body>
+</html>
