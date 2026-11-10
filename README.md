@@ -27,8 +27,8 @@ Settings are saved in the browser. **Download STL files** builds the three parts
 
 | File | Print in | Orientation |
 |---|---|---|
-| `face_plate.stl` | Black ASA / PETG | Face-down, so the front is smooth and the chamfer prints as a 45° overhang |
-| `diffuser_shell.stl` | White / natural PETG | Front-down, open side up, no supports |
+| `face_plate.stl` | Black ASA / PETG | Face-down for the best front finish. The chamfer prints as a 45° overhang. The rounded edge finishes with a 45° bevel at the front face, so neither option needs supports. Alignment pins and letter bridges are on the rear, so they print last |
+| `diffuser_shell.stl` | White / natural PETG | Front-down, open side up, no supports. The alignment sockets open on the bed side |
 | `back_panel.stl` | Any PETG / ASA | Flat side down |
 | `gasket_tpu.stl` (optional) | TPU 95A | Flat. Only included when the seal is set to **Printed TPU gasket** |
 

@@ -337,14 +337,20 @@ def face_plate(S, g, letters, pins=()):
     outline = rr(W, H, R)
     if e > 0.01:
         plate = ext(outline, T - e)
-        n = 8 if S.get("edge") == "round" else 1
+        # (inset, z) profile points from the plate edge to the front face
+        if S.get("edge") == "round":
+            # quarter round up to 45 degrees, then a straight 45 degree run to the front face,
+            # so the edge never overhangs more than 45 degrees when printed face-down
+            prof_pts = [(e * (1 - math.cos(a)), T - e + e * math.sin(a))
+                        for a in (math.radians(45) * k / 6 for k in range(7))]
+            i45, z45 = prof_pts[-1]
+            prof_pts.append((i45 + (T - z45), T))
+        else:
+            prof_pts = [(0.0, T - e), (e, T)]
         slabs = []
-        for k in range(n + 1):
-            a = (k / n) * math.pi / 2
-            inset = e * (1 - math.cos(a)) if n > 1 else e * k
-            z = T - e + (e * math.sin(a) if n > 1 else e * k)
+        for inset, z in prof_pts:
             prof = outline.offset(-inset, mf.JoinType.Round, 2.0, SEG) if inset > 1e-4 else outline
-            slabs.append(ext(prof, 0.001, min(z, T - 0.001) if k else z - 0.0005))
+            slabs.append(ext(prof, 0.001, max(T - e - 0.0005, min(z, T - 0.001))))
         plate = plate + mf.Manifold.batch_hull(slabs)
     else:
         plate = ext(outline, T)

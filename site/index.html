@@ -271,7 +271,7 @@ tr:last-child td { border-bottom: 0; }
           <div class="row" id="edge-row">
             <div class="field"><label class="label" for="edgeSize">Chamfer / round size</label><div class="unit" data-u="mm"><input type="number" id="edgeSize" min="0.25" max="5" step="0.25"></div></div>
           </div>
-          <p class="hintline">Corner radius rounds the four corners seen from the front. Front edge sets the profile all the way round: a 45° chamfer or a rounded edge. Pick Chamfer or Rounded to set its size, up to <b id="edge-max">2.4</b> mm on this plate (thickness minus 0.6 mm). To make the plate stick out past the diffuser, use <b>Face plate overhang</b> under Diffuser shell.</p>
+          <p class="hintline">Corner radius rounds the four corners seen from the front. Front edge sets the profile all the way round: a 45° chamfer or a rounded edge. The face plate prints face-down, so the rounded edge finishes as a 45° bevel at the very front, which means neither option needs supports. Pick Chamfer or Rounded to set its size, up to <b id="edge-max">2.4</b> mm on this plate (thickness minus 0.6 mm). To make the plate stick out past the diffuser, use <b>Face plate overhang</b> under Diffuser shell.</p>
           <div class="field">
             <span class="label">Colour</span>
             <div class="swatches" id="swatches"></div>
@@ -688,7 +688,9 @@ tr:last-child td { border-bottom: 0; }
     const showLetter = hb < Hv;
     const fTop = showLetter ? hb : top;
     let edge = c > 0
-      ? (S.edge === 'round' ? ' A' + c + ' ' + c + ' 0 0 0 ' + D + ' ' + y(c) : ' L' + D + ' ' + y(c))
+      ? (S.edge === 'round'
+          ? ' A' + c + ' ' + c + ' 0 0 0 ' + (D - 0.293 * c) + ' ' + y(0.293 * c) + ' L' + D + ' ' + y(0.586 * c)
+          : ' L' + D + ' ' + y(c))
       : ' L' + D + ' ' + y(0);
     s += '<path d="M' + zF + ' ' + y(0) + ' L' + (D - c) + ' ' + y(0) + edge + ' L' + D + ' ' + y(fTop) + ' L' + zF + ' ' + y(fTop) + ' Z" fill="' + face + '" stroke="var(--p-face-stroke)" stroke-width=".25"/>';
     if (showLetter) {
