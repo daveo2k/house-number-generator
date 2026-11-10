@@ -21,6 +21,31 @@ The plaque is a sealed light box with three printed parts:
 
 Settings are saved in the browser. **Copy settings** exports them as JSON.
 
+## Generate STL files
+
+`cad/make_stl.py` turns the JSON from **Copy settings** into three print-ready STLs, using the same layout as the designer:
+
+| File | Print in | Orientation |
+|---|---|---|
+| `face_plate.stl` | Black ASA / PETG | Face-down, so the front is smooth and the chamfer prints as a 45° overhang |
+| `diffuser_shell.stl` | White / natural PETG | Front-down, open side up, no supports |
+| `back_panel.stl` | Any PETG / ASA | Flat side down |
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r cad/requirements.txt
+# paste the settings from the designer into design.json, then:
+.venv/bin/python cad/make_stl.py design.json -o stl
+```
+
+Fonts are downloaded from the Google Fonts repository the first time each one is used, and cached in `cad/fonts/`.
+
+Details built into the parts:
+- The middles of letters such as A, O, R and D are held by 1.2 mm × 1 mm bridges on the back of the face plate.
+- The insert hole is Ø4.0 mm, for an M3 × 5.7 heat-set insert, with a Ø3.4 mm hole below it for the grub screw and hex key.
+- The rim groove is 2.2 × 1.2 mm, for 2 mm silicone cord.
+- There's 0.2 mm clearance per side between the back panel and the shell, and a Ø2 mm weep hole in the bottom of the shell.
+
 ## Run with Docker
 
 ```sh
