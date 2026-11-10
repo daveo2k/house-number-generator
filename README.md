@@ -29,6 +29,23 @@ docker compose up -d --build
 
 Then open http://localhost:8080.
 
+To use a different port, set `HTTP_PORT`, either in a `.env` file next to `docker-compose.yml` (see `.env.example`) or on the command line:
+
+```sh
+HTTP_PORT=9000 docker compose up -d --build
+```
+
+## Deploy with Portainer
+
+1. In Portainer, go to **Stacks → Add stack** and choose **Repository**.
+2. Repository URL: `https://github.com/daveo2k/house-number-generator`
+3. Repository reference: `refs/heads/main`
+4. Compose path: `docker-compose.yml`
+5. Under **Environment variables**, add `HTTP_PORT` set to the port you want. If you leave it out, it uses 8080.
+6. Click **Deploy the stack**.
+
+Portainer builds the image from the Dockerfile on the host. To pick up changes later, open the stack, click **Pull and redeploy**, and turn on re-pulling the image so it rebuilds. You can also turn on **GitOps updates** so Portainer redeploys automatically when the repo changes.
+
 Without Compose:
 
 ```sh
