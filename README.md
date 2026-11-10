@@ -30,6 +30,7 @@ Settings are saved in the browser. **Download STL files** builds the three parts
 | `face_plate.stl` | Black ASA / PETG | Face-down, so the front is smooth and the chamfer prints as a 45° overhang |
 | `diffuser_shell.stl` | White / natural PETG | Front-down, open side up, no supports |
 | `back_panel.stl` | Any PETG / ASA | Flat side down |
+| `gasket_tpu.stl` (optional) | TPU 95A | Flat. Only included when the seal is set to **Printed TPU gasket** |
 
 ```sh
 python3 -m venv .venv
@@ -45,6 +46,9 @@ Details built into the parts:
 - The insert hole is Ø4.0 mm, for an M3 × 5.7 heat-set insert, with a Ø3.4 mm hole below it for the grub screw and hex key.
 - The rim groove is 2.2 × 1.2 mm, for 2 mm silicone cord.
 - There's 0.2 mm clearance per side between the back panel and the shell, and a Ø2 mm weep hole in the bottom of the shell.
+- Three Ø3 × 2 mm alignment pins on the back of the face plate fit Ø3.3 × 2.3 mm sockets in the diffuser front, so the two line up exactly for gluing. The pins are in three corners, so the plate only fits one way round. They move inwards automatically if lettering is in the way.
+- Two snap catches inside the top of the shell click into V notches in the back panel's 12 mm rim. Each catch has a 45° front face and a 30° lead-in ramp, so it prints without supports and comes apart with a firm pull. A 0.8 mm lead-in chamfer on the shell's rear edge helps it slide over the seal.
+- The TPU gasket is sized from the groove. It stretches 0.3 mm onto the groove and stands 0.45 mm proud of the rim, so the shell squeezes it by about 0.25 mm.
 
 ## Run with Docker
 

@@ -24,7 +24,7 @@ import trimesh
 from fontTools.pens.basePen import BasePen
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
-from shapely.geometry import MultiPolygon, Polygon, box as sbox
+from shapely.geometry import MultiPolygon, Point, Polygon, box as sbox
 from shapely.ops import unary_union
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -54,6 +54,17 @@ ARM_HOLE_D = 3.2       # hole in the back panel arm that the grub tip locks into
 GRUB_Z = 15.0          # distance of the grub screw axis from the wall
 SEAL_W, SEAL_DEPTH = 2.2, 1.2   # groove for 2 mm silicone cord
 CABLE_D = 8.0
+PIN_D, PIN_H, PIN_TIP = 3.0, 2.0, 0.4          # alignment pins on the back of the face plate
+SOCKET_D, SOCKET_DEPTH = 3.3, 2.3              # matching sockets in the diffuser front
+SOCKET_BOSS_D, SOCKET_BOSS_H = 7.0, 1.2        # thickens the diffuser wall behind each socket
+RIM_H = 12.0           # back panel rim height (seal groove low down, catch notches above it)
+LATCH_Z = 12.0         # catch position, measured from the wall
+LATCH_DEPTH = 0.9      # how far each catch stands in from the shell's top wall (0.7 mm engagement)
+LATCH_LEN = 18.0
+LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
+GASKET_H = 2.0         # printed TPU gasket: height (groove is SEAL_W)
+GASKET_STRETCH = 0.3   # gasket inner edge sits this far inside the groove bottom
+GASKET_PROUD = 0.45    # how far it stands proud of the rim face (gap is CLEAR, so ~0.25 squeeze)
 SEG = 48               # segments for circles
 
 
@@ -245,6 +256,11 @@ def cyl_y(x, z, y0, y1, d):
     return mf.Manifold.cylinder(y1 - y0, d / 2, d / 2, SEG).rotate((-90, 0, 0)).translate((x, y0, z))
 
 
+def prism(pts_yz, x0, x1):
+    """Convex prism along X from a (y, z) outline."""
+    return mf.Manifold.hull_points([(x, y, z) for x in (x0, x1) for y, z in pts_yz])
+
+
 def cyl_z(x, y, z0, z1, d0, d1=None):
     return mf.Manifold.cylinder(z1 - z0, d0 / 2, (d1 if d1 is not None else d0) / 2, SEG).translate((x, y, z0))
 
@@ -296,8 +312,27 @@ def derive(S):
                 row_ys=row_ys, holes=holes, cable=cable)
 
 
+def pin_positions(S, g, letters):
+    """Three alignment pins in three corners (keyed, so the plate only fits one way round),
+    kept clear of the lettering and inside the diffuser front."""
+    if not S.get("pins", True):
+        return []
+    inset = S["SW"] + 5 + g["Rs"] * 0.3
+    x, y = g["Ws"] / 2 - inset, g["Hs"] / 2 - inset
+    keep_out = letters.buffer(1.5)
+    out = []
+    for sx, sy in ((-1, 1), (1, 1), (-1, -1)):
+        px = sx * x
+        for _ in range(40):
+            if not Point(px, sy * y).buffer(PIN_D / 2).intersects(keep_out):
+                out.append((px, sy * y))
+                break
+            px -= sx * 3      # slide towards the centre until clear of the letters
+    return out
+
+
 # ---------------------------------------------------------------- parts
-def face_plate(S, g, letters):
+def face_plate(S, g, letters, pins=()):
     W, H, T, e, R = S["W"], S["H"], S["T"], g["e"], g["R"]
     outline = rr(W, H, R)
     if e > 0.01:
@@ -317,10 +352,13 @@ def face_plate(S, g, letters):
     br = bridges(letters)
     if br is not None and not br.is_empty:
         plate = plate + ext(to_cs(br), BRIDGE_T)
+    for x, y in pins:   # pins stand off the back face (z < 0), with a chamfered tip
+        plate = plate + cyl_z(x, y, -(PIN_H - PIN_TIP), 0.01, PIN_D)
+        plate = plate + cyl_z(x, y, -PIN_H, -(PIN_H - PIN_TIP) + 0.001, PIN_D - 2 * PIN_TIP, PIN_D)
     return flip_for_print(plate)
 
 
-def diffuser_shell(S, g):
+def diffuser_shell(S, g, pins=()):
     SW, F, zDF = S["SW"], S["F"], g["zDF"]
     Ws, Hs, Rs = g["Ws"], g["Hs"], g["Rs"]
     yb = -Hs / 2                       # outer bottom face
@@ -332,7 +370,39 @@ def diffuser_shell(S, g):
     shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
     # weep hole near one bottom corner
     shell = shell - cyl_y(-Ws / 2 + 15, 4, yb - 1, yb + SW + 1, 2.0)
+    # lead-in chamfer round the rear inner edge, so the shell slides over the seal
+    inner = rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW))
+    shell = shell - mf.Manifold.batch_hull([
+        ext(inner.offset(LEAD_IN, mf.JoinType.Round, 2.0, SEG), 0.01, -0.01),
+        ext(inner, 0.01, LEAD_IN)])
+    # snap catches on the inside of the top wall. The front face is 45 degrees (prints without
+    # support and holds firmly but releases with a firm pull); the rear face is a gentle ramp.
+    y_in = Hs / 2 - SW
+    d = LATCH_DEPTH
+    ramp = d / math.tan(math.radians(30))
+    for xc in latch_xs(g):
+        shell = shell + prism([(y_in + 0.3, LATCH_Z + d + 0.3), (y_in - d, LATCH_Z),
+                               (y_in + 0.3, LATCH_Z - ramp - 0.3)], xc - LATCH_LEN / 2, xc + LATCH_LEN / 2)
+    # alignment sockets for the face plate pins, each backed by a small boss inside
+    front = zDF + F
+    for x, y in pins:
+        shell = shell + cyl_z(x, y, zDF - SOCKET_BOSS_H, zDF + 0.01, SOCKET_BOSS_D)
+        shell = shell - cyl_z(x, y, front - SOCKET_DEPTH, front + 1, SOCKET_D)
     return flip_for_print(shell)
+
+
+def latch_xs(g):
+    return (-g["Wp"] / 4, g["Wp"] / 4)
+
+
+def gasket(S, g):
+    """Printed TPU seal that sits in the back panel's rim groove."""
+    Wp, Hp, Rp = g["Wp"], g["Hp"], g["Rp"]
+    base = SEAL_DEPTH + GASKET_STRETCH                    # inset of the gasket's inner edge
+    t = GASKET_STRETCH + SEAL_DEPTH + GASKET_PROUD        # radial thickness
+    outer = rr(Wp - 2 * base + 2 * t, Hp - 2 * base + 2 * t, max(0, Rp - base + t))
+    inner = rr(Wp - 2 * base, Hp - 2 * base, max(0, Rp - base))
+    return ext(outer - inner, GASKET_H)
 
 
 def back_panel(S, g):
@@ -340,7 +410,13 @@ def back_panel(S, g):
     Wp, Hp, Rp = g["Wp"], g["Hp"], g["Rp"]
     outer = rr(Wp, Hp, Rp)
     panel = ext(outer, 3)
-    panel = panel + ext(outer - rr(Wp - 4, Hp - 4, max(0, Rp - 2)), 6, 3)
+    panel = panel + ext(outer - rr(Wp - 4, Hp - 4, max(0, Rp - 2)), RIM_H, 3)
+    # notch in the bottom rim so it clears the shell's insert boss
+    panel = panel - box(-5.5, 5.5, -Hp / 2 - 1, -Hp / 2 + 2.5, 9, 3 + RIM_H + 1)
+    # V notches in the top rim for the shell's catches (45 degree faces, no supports)
+    for xc in latch_xs(g):
+        panel = panel - prism([(Hp / 2 + 0.6, LATCH_Z - 1.5), (Hp / 2 - LATCH_DEPTH, LATCH_Z),
+                               (Hp / 2 + 0.6, LATCH_Z + 1.5)], xc - LATCH_LEN / 2 - 1, xc + LATCH_LEN / 2 + 1)
     # seal groove round the outside of the rim
     groove = outer - rr(Wp - 2 * SEAL_DEPTH, Hp - 2 * SEAL_DEPTH, max(0, Rp - SEAL_DEPTH))
     panel = panel - ext(groove, SEAL_W, 6 - SEAL_W / 2)
@@ -368,11 +444,14 @@ def build(S):
     """Build all parts. Returns {filename: (manifold, stl_bytes)}."""
     g = derive(S)
     letters = lettering(S)
+    pins = pin_positions(S, g, letters)
     parts = {
-        "face_plate.stl": face_plate(S, g, letters),
-        "diffuser_shell.stl": diffuser_shell(S, g),
+        "face_plate.stl": face_plate(S, g, letters, pins),
+        "diffuser_shell.stl": diffuser_shell(S, g, pins),
         "back_panel.stl": back_panel(S, g),
     }
+    if S.get("seal") == "gasket":
+        parts["gasket_tpu.stl"] = gasket(S, g)
     return {name: (m, stl_bytes(m)) for name, m in parts.items()}
 
 

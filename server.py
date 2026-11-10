@@ -64,6 +64,8 @@ def clean(raw):
     sizes = raw.get("sizes") or [60]
     S["sizes"] = [min(400.0, max(5.0, float(v))) for v in list(sizes)[:8]]
     S["divider"] = bool(raw.get("divider"))
+    S["pins"] = bool(raw.get("pins", True))
+    S["seal"] = "gasket" if raw.get("seal") == "gasket" else "cord"
     return S
 
 
@@ -131,7 +133,11 @@ class Handler(SimpleHTTPRequestHandler):
                 "face_plate.stl      black ASA/PETG, already front-face down",
                 "diffuser_shell.stl  white PETG, already front-face down",
                 "back_panel.stl      any PETG/ASA, flat side down",
-                "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert, 2 mm silicone cord.",
+                "Alignment: 3 pins on the face plate fit sockets in the diffuser (keyed, one way round).",
+                "Two snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
+                ("gasket_tpu.stl      TPU (95A), flat; stretch it into the rim groove" if S["seal"] == "gasket"
+                 else "Seal: 2 mm silicone cord in the rim groove"),
+                "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
             ]))
         name = slug(S) + "-stl.zip"
         self._send(200, buf.getvalue(), "application/zip",
