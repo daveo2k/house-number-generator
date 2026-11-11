@@ -344,7 +344,7 @@ tr:last-child td { border-bottom: 0; }
               <button type="button" id="sl-tpu" data-val="filament">1.75 mm TPU filament</button>
             </div>
           </div>
-          <p class="hintline">Three Ø3 × 2 mm pins on the back of the face plate fit sockets in the diffuser. They're in three corners, so the plate only goes on one way round. Three snap catches inside the top of the shell click into notches in the back panel, and the grub screw locks the bottom. For the TPU option, use a plain length of 1.75 mm TPU filament, unprinted. The groove is sized for it, and the parts list gives the length to cut.</p>
+          <p class="hintline">Three Ø3 × 2 mm pins on the back of the face plate fit sockets in the diffuser. They're in three corners, so the plate only goes on one way round. Three snap catches inside the top of the shell click into notches in the back panel, and the grub screw locks the bottom. For the TPU option, use a plain length of 1.75 mm TPU filament, unprinted. The groove is sized for it, and the parts list gives the length to cut. Both ends go through two holes in the bottom of the rim and fold back into a pinch slot inside, so you don't need glue.</p>
         </div>
       </details>
 
@@ -412,7 +412,7 @@ tr:last-child td { border-bottom: 0; }
       </table>
     </div>
     <div class="notes">
-      <div><h3>Fitting order</h3><ol><li id="fit-front">Glue the face plate to the diffuser. The pins line it up.</li><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Fit the seal into the rim groove. For TPU filament, cut it to the length in the parts list. Either splice it into a ring and stretch it on, or stretch it round and glue both ends with flexible CA. Put the joint at the bottom centre.</li><li>Push the shell over the rim until the three top catches click and the shell meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
+      <div><h3>Fitting order</h3><ol><li id="fit-front">Glue the face plate to the diffuser. The pins line it up.</li><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Fit the seal into the rim groove. For TPU filament, cut it to the length in the parts list. Push one end through an anchor hole at the bottom, fold it back and press it into the slot above. Stretch the filament round the groove, then anchor the other end in the second hole the same way.</li><li>Push the shell over the rim until the three top catches click and the shell meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
       <div><h3>Outdoors</h3><p>Print in ASA or PETG for UV and heat resistance. PLA will warp on a sunny wall. Leave a 2 mm weep hole at the lowest corner of the shell.</p></div>
       <div><h3>Letter islands</h3><p id="islands-note">The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.</p></div>
     </div>
@@ -803,10 +803,11 @@ tr:last-child td { border-bottom: 0; }
     });
     s += '<circle cx="' + X(g.cable[0]) + '" cy="' + Y(g.cable[1]) + '" r="4" fill="var(--bg)" stroke="var(--fg)" stroke-width=".4"/>';
     s += '<rect x="' + (Wp / 2 - 6) + '" y="' + (Hp - 9.3) + '" width="12" height="3" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>';
+    if (S.seal === 'filament') s += '<rect x="' + X(-22) + '" y="' + (Hp - 10) + '" width="12" height="8" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>' + [-18, -14].map(ax => '<rect x="' + (X(ax) - .75) + '" y="' + (Hp - 10) + '" width="1.5" height="10" fill="#e0603a"/>').join('');
     [-Wp / 3, 0, Wp / 3].forEach(cx => { s += '<rect x="' + (X(cx) - 10) + '" y="-0.6" width="20" height="1.6" fill="var(--accent)"/>'; });
     s += '<g font-family="IBM Plex Mono, monospace" font-size="' + fs * .8 + '" fill="var(--fg)">' +
       T(X(g.cable[0]) + 7, Y(g.cable[1]) + fs * .3, 'cable Ø8', false, 'start') +
-      T(Wp / 2, Hp - 11, 'grub arm', false) + [-Wp / 3, 0, Wp / 3].map(cx => T(X(cx), 6 + fs * .5, 'catch notch', false)).join('') + '</g>';
+      T(Wp / 2, Hp - 11, 'grub arm', false) + (S.seal === 'filament' ? T(X(-24), Hp - 4, 'seal anchor', false, 'end') : '') + [-Wp / 3, 0, Wp / 3].map(cx => T(X(cx), 6 + fs * .5, 'catch notch', false)).join('') + '</g>';
     const hs = g.holes.map(h => h[0]), vs = g.holes.map(h => h[1]);
     const x1 = Math.min(...hs), x2 = Math.max(...hs), y1 = Math.max(...vs), y2 = Math.min(...vs);
     s += '<g stroke="var(--muted)" stroke-width=".4" fill="var(--muted)" font-family="IBM Plex Mono, monospace" font-size="' + fs + '">';
@@ -839,7 +840,7 @@ tr:last-child td { border-bottom: 0; }
     const inset = tpu ? 1.1 - 1.75 / 2 : 1.2 - 1;
     const sR = Math.max(0, g.Rp - inset);
     const loop = 2 * (g.Wp - 2 * inset + g.Hp - 2 * inset) - (8 - 2 * Math.PI) * sR;
-    const cut = loop * 0.98;
+    const cut = tpu ? (loop - 4) * 0.98 + 2 * 25 : loop;  // ANCHOR_GAP, FILAMENT_STRETCH, ANCHOR_TAIL
     const tog = S.front === 'together';
     let n = 0; const num = t => (++n) + ' · ' + t;
     const frontRows = tog
@@ -850,8 +851,8 @@ tr:last-child td { border-bottom: 0; }
         ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
     $('parts').innerHTML = [
       ...frontRows,
-      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and three catch notches at the top. ' + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
-      ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm, 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on. Splice it into a ring, or glue both ends with flexible CA. Put the joint at the bottom centre. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
+      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and three catch notches at the top. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
+      ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm. That is 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on, plus 25 mm at each end for the anchor. Push one end through each anchor hole at the bottom, fold the tail back and press it down into the slot above. Trim any spare. No glue needed. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
       ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
     ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
     // warnings

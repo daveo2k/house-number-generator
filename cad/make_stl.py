@@ -67,6 +67,16 @@ GRUB_Z = 15.0          # distance of the grub screw axis from the wall
 SEALS = {"cord": (2.2, 1.2, 2.0), "filament": (2.0, 1.1, 1.75)}
 SEAL_Z = 6.0           # groove centre, measured from the wall
 FILAMENT_STRETCH = 0.02   # cut the filament 2% short so it hugs the groove bottom
+# TPU filament anchor: both ends of the filament poke through two holes in the bottom rim into a
+# block inside, then fold back and press down into a pinch slot. It sits just left of the grub arm.
+ANCHOR_X = -16.0       # centre between the two holes
+ANCHOR_GAP = 4.0       # hole centre to centre
+ANCHOR_HOLE = 3.0      # diamond hole, corner to corner (2.1 mm clear, no overhang past 45 degrees)
+ANCHOR_FREE_W = 2.2    # lower channel the filament passes through freely
+ANCHOR_PINCH_W = 1.5   # upper slot the folded tail is pressed into
+ANCHOR_BLOCK_Y = 8.0   # block depth, in from the rim
+ANCHOR_TOP = 11.0      # block top, from the wall
+ANCHOR_TAIL = 25.0     # extra filament per end to go through and fold back
 CABLE_D = 8.0
 PIN_D, PIN_H, PIN_TIP = 3.0, 2.0, 0.4          # alignment pins on the back of the face plate
 SOCKET_D, SOCKET_DEPTH = 3.3, 2.3              # matching sockets in the diffuser front
@@ -457,8 +467,15 @@ def seal_length(S, g):
     inset = depth - d / 2                              # cord centre, in from the rim face
     W, H, R = g["Wp"] - 2 * inset, g["Hp"] - 2 * inset, max(0.0, g["Rp"] - inset)
     loop = 2 * (W + H) - (8 - 2 * math.pi) * R
-    cut = loop * (1 - FILAMENT_STRETCH) if seal_type(S) == "filament" else loop
+    if seal_type(S) == "filament":
+        cut = (loop - ANCHOR_GAP) * (1 - FILAMENT_STRETCH) + 2 * ANCHOR_TAIL
+    else:
+        cut = loop
     return loop, cut
+
+
+def anchor_xs():
+    return (ANCHOR_X - ANCHOR_GAP / 2, ANCHOR_X + ANCHOR_GAP / 2)
 
 
 def back_panel(S, g):
@@ -482,6 +499,8 @@ def back_panel(S, g):
     sw, sd, _ = SEALS[seal_type(S)]
     groove = outer - rr(Wp - 2 * sd, Hp - 2 * sd, max(0, Rp - sd))
     panel = panel - ext(groove, sw, SEAL_Z - sw / 2)
+    if seal_type(S) == "filament":
+        panel = seal_anchor(panel, Hp)
     # arm for the grub screw, tied into the bottom rim
     arm_y = -Hs / 2 + SW + 8
     panel = panel + box(-6, 6, arm_y - 1.5, arm_y + 1.5, 2.99, GRUB_Z + 4)
@@ -499,6 +518,26 @@ def back_panel(S, g):
             head = 2 * d
             panel = panel - cyl_z(x, y, 3 - (head - d - 0.5) / 2, 3.01, d + 0.5, head)
     panel = panel - cyl_z(g["cable"][0], g["cable"][1], -1, 4, CABLE_D)
+    return panel
+
+
+def seal_anchor(panel, Hp):
+    """Two holes through the bottom rim at the seal groove, into a block with a free channel
+    behind each hole and a narrower pinch slot above it for the folded-back tail."""
+    y_out, y_in = -Hp / 2, -Hp / 2 + 2
+    y_end = y_in + ANCHOR_BLOCK_Y
+    xa, xb = anchor_xs()
+    half = ANCHOR_PINCH_W + 2.5
+    panel = panel + box(xa - half, xb + half, y_in - 0.01, y_end, 2.99, ANCHOR_TOP)
+    r = ANCHOR_HOLE / 2
+    free_bot, free_top = SEAL_Z - r, SEAL_Z + r - 0.3
+    for x in (xa, xb):
+        # diamond hole along Y: a square turned 45 degrees in the XZ plane
+        hole = mf.Manifold.hull_points([(x + dx, y, SEAL_Z + dz) for y in (y_out - 1, y_in + 0.5)
+                                        for dx, dz in ((r, 0), (-r, 0), (0, r), (0, -r))])
+        panel = panel - hole
+        panel = panel - box(x - ANCHOR_FREE_W / 2, x + ANCHOR_FREE_W / 2, y_in - 0.01, y_end + 1, free_bot, free_top)
+        panel = panel - box(x - ANCHOR_PINCH_W / 2, x + ANCHOR_PINCH_W / 2, y_in - 0.01, y_end + 1, free_top - 0.01, ANCHOR_TOP + 1)
     return panel
 
 

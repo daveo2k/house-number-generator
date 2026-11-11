@@ -100,9 +100,10 @@ def front_notes(S):
 def seal_note(S):
     loop, cut = make_stl.seal_length(S, make_stl.derive(S))
     if S["seal"] == "filament":
-        return (f"Seal: 1.75 mm TPU filament (unprinted). Cut {cut:.0f} mm, 2% short of the "
-                f"{loop:.0f} mm groove, so it hugs the groove. Splice it into a ring, or stretch it in "
-                "and glue both ends at the bottom centre. Put the joint at the bottom.")
+        return (f"Seal: 1.75 mm TPU filament (unprinted). Cut {cut:.0f} mm: 2% short of the "
+                f"{loop:.0f} mm groove so it hugs the groove, plus {make_stl.ANCHOR_TAIL:.0f} mm at "
+                "each end. Push each end through one of the two anchor holes at the bottom of the rim, "
+                "fold the tail back and press it down into the slot above. Trim any spare.")
     return f"Seal: {loop / 1000:.2f} m of 2 mm silicone cord in the rim groove"
 
 
