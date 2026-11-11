@@ -52,7 +52,13 @@ INSERT_L = 5.7
 GRUB_CLEAR_D = 3.4     # clearance hole below the insert for the grub screw and hex key
 ARM_HOLE_D = 3.2       # hole in the back panel arm that the grub tip locks into
 GRUB_Z = 15.0          # distance of the grub screw axis from the wall
-SEAL_W, SEAL_DEPTH = 2.2, 1.2   # groove for 2 mm silicone cord
+# Rim groove per seal type: (width, depth, cord diameter). The shell gap is CLEAR, so a cord
+# stands (d - depth) proud and is squeezed by (d - depth - CLEAR):
+#   2 mm silicone cord:        0.6 mm squeeze (30%)
+#   1.75 mm TPU filament:      0.45 mm squeeze (26%), width leaves room for it to spread
+SEALS = {"cord": (2.2, 1.2, 2.0), "filament": (2.0, 1.1, 1.75)}
+SEAL_Z = 6.0           # groove centre, measured from the wall
+FILAMENT_STRETCH = 0.02   # cut the filament 2% short so it hugs the groove bottom
 CABLE_D = 8.0
 PIN_D, PIN_H, PIN_TIP = 3.0, 2.0, 0.4          # alignment pins on the back of the face plate
 SOCKET_D, SOCKET_DEPTH = 3.3, 2.3              # matching sockets in the diffuser front
@@ -62,9 +68,6 @@ LATCH_Z = 12.0         # catch position, measured from the wall
 LATCH_DEPTH = 0.9      # how far each catch stands in from the shell's top wall (0.7 mm engagement)
 LATCH_LEN = 18.0
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
-GASKET_H = 2.0         # printed TPU gasket: height (groove is SEAL_W)
-GASKET_STRETCH = 0.3   # gasket inner edge sits this far inside the groove bottom
-GASKET_PROUD = 0.45    # how far it stands proud of the rim face (gap is CLEAR, so ~0.25 squeeze)
 SEG = 48               # segments for circles
 
 
@@ -401,14 +404,19 @@ def latch_xs(g):
     return (-g["Wp"] / 4, g["Wp"] / 4)
 
 
-def gasket(S, g):
-    """Printed TPU seal that sits in the back panel's rim groove."""
-    Wp, Hp, Rp = g["Wp"], g["Hp"], g["Rp"]
-    base = SEAL_DEPTH + GASKET_STRETCH                    # inset of the gasket's inner edge
-    t = GASKET_STRETCH + SEAL_DEPTH + GASKET_PROUD        # radial thickness
-    outer = rr(Wp - 2 * base + 2 * t, Hp - 2 * base + 2 * t, max(0, Rp - base + t))
-    inner = rr(Wp - 2 * base, Hp - 2 * base, max(0, Rp - base))
-    return ext(outer - inner, GASKET_H)
+def seal_type(S):
+    """'cord' or 'filament'. Older settings saying 'gasket' (printed TPU) now mean filament."""
+    return "filament" if S.get("seal") in ("filament", "gasket") else "cord"
+
+
+def seal_length(S, g):
+    """Length of the seal's centreline round the rim groove, and the length to cut, in mm."""
+    w, depth, d = SEALS[seal_type(S)]
+    inset = depth - d / 2                              # cord centre, in from the rim face
+    W, H, R = g["Wp"] - 2 * inset, g["Hp"] - 2 * inset, max(0.0, g["Rp"] - inset)
+    loop = 2 * (W + H) - (8 - 2 * math.pi) * R
+    cut = loop * (1 - FILAMENT_STRETCH) if seal_type(S) == "filament" else loop
+    return loop, cut
 
 
 def back_panel(S, g):
@@ -424,8 +432,9 @@ def back_panel(S, g):
         panel = panel - prism([(Hp / 2 + 0.6, LATCH_Z - 1.5), (Hp / 2 - LATCH_DEPTH, LATCH_Z),
                                (Hp / 2 + 0.6, LATCH_Z + 1.5)], xc - LATCH_LEN / 2 - 1, xc + LATCH_LEN / 2 + 1)
     # seal groove round the outside of the rim
-    groove = outer - rr(Wp - 2 * SEAL_DEPTH, Hp - 2 * SEAL_DEPTH, max(0, Rp - SEAL_DEPTH))
-    panel = panel - ext(groove, SEAL_W, 6 - SEAL_W / 2)
+    sw, sd, _ = SEALS[seal_type(S)]
+    groove = outer - rr(Wp - 2 * sd, Hp - 2 * sd, max(0, Rp - sd))
+    panel = panel - ext(groove, sw, SEAL_Z - sw / 2)
     # arm for the grub screw, tied into the bottom rim
     arm_y = -Hs / 2 + SW + 8
     panel = panel + box(-6, 6, arm_y - 1.5, arm_y + 1.5, 2.99, GRUB_Z + 4)
@@ -456,8 +465,6 @@ def build(S):
         "diffuser_shell.stl": diffuser_shell(S, g, pins),
         "back_panel.stl": back_panel(S, g),
     }
-    if S.get("seal") == "gasket":
-        parts["gasket_tpu.stl"] = gasket(S, g)
     return {name: (m, stl_bytes(m)) for name, m in parts.items()}
 
 

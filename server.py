@@ -65,8 +65,17 @@ def clean(raw):
     S["sizes"] = [min(400.0, max(5.0, float(v))) for v in list(sizes)[:8]]
     S["divider"] = bool(raw.get("divider"))
     S["pins"] = bool(raw.get("pins", True))
-    S["seal"] = "gasket" if raw.get("seal") == "gasket" else "cord"
+    S["seal"] = make_stl.seal_type(raw)
     return S
+
+
+def seal_note(S):
+    loop, cut = make_stl.seal_length(S, make_stl.derive(S))
+    if S["seal"] == "filament":
+        return (f"Seal: 1.75 mm TPU filament (unprinted). Cut {cut:.0f} mm, 2% short of the "
+                f"{loop:.0f} mm groove, so it hugs the groove. Splice it into a ring, or stretch it in "
+                "and glue both ends at the bottom centre. Put the joint at the bottom.")
+    return f"Seal: {loop / 1000:.2f} m of 2 mm silicone cord in the rim groove"
 
 
 def slug(S):
@@ -135,8 +144,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "back_panel.stl      any PETG/ASA, flat side down",
                 "Alignment: 3 pins on the face plate fit sockets in the diffuser (keyed, one way round).",
                 "Two snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
-                ("gasket_tpu.stl      TPU (95A), flat; stretch it into the rim groove" if S["seal"] == "gasket"
-                 else "Seal: 2 mm silicone cord in the rim groove"),
+                seal_note(S),
                 "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
             ]))
         name = slug(S) + "-stl.zip"
