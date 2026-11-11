@@ -65,6 +65,10 @@ def clean(raw):
     S["sizes"] = [min(400.0, max(5.0, float(v))) for v in list(sizes)[:8]]
     S["divider"] = bool(raw.get("divider"))
     S["front"] = "together" if raw.get("front") == "together" else "separate"
+    try:
+        S["recess"] = min(S["T"], max(0.0, float(raw.get("recess", 0))))
+    except (TypeError, ValueError):
+        raise ValueError("Missing or invalid setting: recess")
     S["pins"] = bool(raw.get("pins", True)) and S["front"] == "separate"
     S["seal"] = make_stl.seal_type(raw)
     return S
@@ -77,8 +81,14 @@ def front_notes(S):
             "  Import front_1_face_black.stl and front_2_diffuser_white.stl together and choose",
             "  to load them as one object with multiple parts. Then set part 1 to black and",
             "  part 2 to white. Use the same material for both (e.g. PETG + PETG) so they bond.",
-            "  Each letter has a flush white skin. No bridges, no alignment pins, no glue.",
-        ]
+            "  No bridges, no alignment pins, no glue.",
+        ] + ([
+            f"  Letters are recessed {S['recess']:g} mm. front_3_plugs_pla.stl fills the recesses while",
+            "  printing: add it as a third part and give it PLA (or Bambu Support for PETG) on the",
+            "  white nozzle. It only prints below the white, so there is one filament swap.",
+            "  Load all three together so they keep their positions, and don't move the parts.",
+            "  Pop the plugs out afterwards with a pick.",
+        ] if S["recess"] > 0.05 else ["  Letters are flush white skins."])
     return [
         "face_plate.stl      black ASA/PETG, already front-face down",
         "diffuser_shell.stl  white PETG, already front-face down",

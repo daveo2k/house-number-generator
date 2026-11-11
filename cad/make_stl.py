@@ -10,9 +10,11 @@ Reads the JSON from the designer's "Copy settings" button and writes three STLs:
 With "front": "together" the face plate and diffuser print as one two-colour part instead:
 
   front_1_face_black.stl     - face plate, no bridges or pins
-  front_2_diffuser_white.stl - diffuser shell plus a flush white skin in each letter
+  front_2_diffuser_white.stl - diffuser shell plus a white skin in each letter
+  front_3_plugs_pla.stl      - only with a letter recess: PLA plugs that fill the recesses
+                               while printing, then pop out (PLA barely sticks to PETG)
 
-The two share one coordinate frame, so they load as one object with two parts.
+They share one coordinate frame, so they load as one object with several parts.
 Each part is placed ready to print (largest flat face on the bed).
 
 Usage:
@@ -411,16 +413,25 @@ def diffuser_shell(S, g, pins=()):
     return shell
 
 
+def recess(S):
+    """How far the letters sit back from the face in the two-colour front (0 = flush, T = through)."""
+    return max(0.0, min(float(S.get("recess", 0)), S["T"]))
+
+
 def letter_skin(S, g, letters):
-    """For the two-colour front: a white skin filling each letter flush with the face, as thick as
-    the diffuser front, so light passes through the same thickness of white as the separate parts.
-    The diffuser front is cut away behind the letters to keep it that way. Returns (skin, pocket)."""
-    D, T, F = S["D"], S["T"], S["F"]
-    skin_t = min(F, T)
+    """For the two-colour front: a white skin in each letter, set back `recess` from the face and as
+    thick as the diffuser front, so light passes through the same thickness of white as the separate
+    parts. The diffuser front is cut away behind the skin to keep it that way.
+    Returns (skin, pocket, plugs); plugs fill the recess in front of the skin, or None when flush."""
+    D, F = S["D"], S["F"]
+    r = recess(S)
     cs = to_cs(letters)
-    skin = ext(cs, skin_t, D - skin_t)
-    pocket = ext(cs, D - skin_t - g["zDF"] + 1, g["zDF"] - 1)
-    return skin, pocket
+    skin_front = D - r
+    skin_back = max(g["zDF"], skin_front - min(F, S["T"]))
+    skin = ext(cs, skin_front - skin_back, skin_back)
+    pocket = ext(cs, skin_back - g["zDF"] + 1, g["zDF"] - 1) if skin_back > g["zDF"] + 1e-6 else None
+    plugs = ext(cs, r, skin_front) if r > 0.05 else None
+    return skin, pocket, plugs
 
 
 def flip_together(*parts):
@@ -491,10 +502,15 @@ def build(S):
     letters = lettering(S)
     if together(S):
         plate = face_plate(S, g, letters, with_bridges=False).translate((0, 0, S["D"] - S["T"]))
-        skin, pocket = letter_skin(S, g, letters)
-        white = (diffuser_shell(S, g) - pocket) + skin
-        black, white = flip_together(plate, white)
-        parts = {"front_1_face_black.stl": black, "front_2_diffuser_white.stl": white}
+        skin, pocket, plugs = letter_skin(S, g, letters)
+        white = diffuser_shell(S, g)
+        if pocket is not None:
+            white = white - pocket
+        white = white + skin
+        flipped = flip_together(plate, white, *([plugs] if plugs is not None else []))
+        parts = {"front_1_face_black.stl": flipped[0], "front_2_diffuser_white.stl": flipped[1]}
+        if plugs is not None:
+            parts["front_3_plugs_pla.stl"] = flipped[2]
     else:
         pins = pin_positions(S, g, letters)
         parts = {

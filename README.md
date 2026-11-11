@@ -30,7 +30,7 @@ Settings are saved in the browser. **Download STL files** builds the three parts
 | `face_plate.stl` | Black ASA / PETG | Face-down for the best front finish. The chamfer prints as a 45° overhang. The rounded edge finishes with a 45° bevel at the front face, so neither option needs supports. Alignment pins and letter bridges are on the rear, so they print last |
 | `diffuser_shell.stl` | White / natural PETG | Front-down, open side up, no supports. The alignment sockets open on the bed side |
 | `back_panel.stl` | Any PETG / ASA | Flat side down |
-| `front_1_face_black.stl` + `front_2_diffuser_white.stl` | Two colours, same material | Only when **Face plate and diffuser** is set to **Printed together**. These replace the two files above. Import both at once and load them as one object with two parts, then pick a filament for each part. Face-down, no supports |
+| `front_1_face_black.stl` + `front_2_diffuser_white.stl` (+ `front_3_plugs_pla.stl`) | Two colours, same material | Only when **Face plate and diffuser** is set to **Printed together**. These replace the two files above. Import both at once and load them as one object with two parts, then pick a filament for each part. Face-down, no supports |
 
 ```sh
 python3 -m venv .venv
@@ -43,6 +43,7 @@ Fonts are downloaded from the Google Fonts repository the first time each one is
 
 Details built into the parts:
 - **Printed together** (two-colour printers such as the Bambu H2D): the face plate and diffuser print as one part. Each letter gets a flush white skin as thick as the diffuser front, and is hollow behind it. Light passes through the same thickness of white as with the separate parts. Letter islands sit on the diffuser, so there are no bridges, no alignment pins and no glue. Use the same material for both colours so the layers bond.
+- **Letter recess** (printed together only, default 1.5 mm): the white skin sits this far back from the face, so the letters still read as cut out. Set it to 0 for flush letters, or to the plate thickness for the same depth as the separate version. Printed face-down, a recess can't be bridged cleanly, so `front_3_plugs_pla.stl` fills it while printing. Give it PLA (or Bambu Support for PETG) on the white nozzle. It only prints below the white, so there's one filament swap. The plugs pop out afterwards, because PLA barely sticks to PETG.
 - The middles of letters such as A, O, R and D are held by 1.2 mm × 1 mm bridges on the back of the face plate.
 - The insert hole is Ø4.0 mm, for an M3 × 5.7 heat-set insert, with a Ø3.4 mm hole below it for the grub screw and hex key.
 - The rim groove is 2.2 × 1.2 mm for 2 mm silicone cord, or 2.0 × 1.1 mm for 1.75 mm TPU filament. Both cords are squeezed about 25–30% by the shell.
