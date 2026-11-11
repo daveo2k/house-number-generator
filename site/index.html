@@ -9,7 +9,12 @@ body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", sans-serif; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 </style>
-<title>House Number Generator</title>
+<title>House Number Generator · BadgerTech</title>
+<link rel="icon" type="image/svg+xml" href="brand/badgertech-mark-small.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/badgertech-mark-32.png">
+<link rel="apple-touch-icon" href="brand/badgertech-mark-192.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#F2A93B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Josefin+Sans:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Bebas+Neue&family=Roboto+Slab:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=DM+Serif+Display&family=Cinzel:wght@400;500;600;700&display=swap">
@@ -60,6 +65,19 @@ body {
   padding-block: 28px 56px;
 }
 .wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.brandbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.brandbar a { display: inline-flex; border-radius: 6px; }
+.brandbar a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.brandbar img { display: block; height: 40px; width: auto; }
+.brandbar .lockup-dark { display: none; }
+.brandbar span { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; color: var(--muted); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brandbar .lockup-light { display: none; }
+  :root:not([data-theme="light"]) .brandbar .lockup-dark { display: block; }
+}
+:root[data-theme="dark"] .brandbar .lockup-light { display: none; }
+:root[data-theme="dark"] .brandbar .lockup-dark { display: block; }
+@media (max-width: 520px) { .brandbar img { height: 32px; } .brandbar span { display: none; } }
 header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 32px; }
 .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
 h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.05; margin: 0; text-wrap: balance; }
@@ -154,6 +172,13 @@ tr:last-child td { border-bottom: 0; }
 </head>
 <body>
 <div class="wrap">
+  <div class="brandbar">
+    <a href="./" aria-label="BadgerTech, House Number Generator home">
+      <img class="lockup-light" src="brand/badgertech-lockup.svg" alt="BadgerTech" width="171" height="40">
+      <img class="lockup-dark" src="brand/badgertech-lockup-on-dark.svg" alt="BadgerTech" width="171" height="40">
+    </a>
+    <span>House Number Generator</span>
+  </div>
   <header>
     <div>
       <p class="eyebrow">House number generator · check the look before CAD</p>
