@@ -474,6 +474,15 @@ def seal_length(S, g):
     return loop, cut
 
 
+def seal_groove_z(S):
+    """Bottom of the seal groove, and the height where its 45 degree upper face starts at the
+    groove bottom. The slope is set just clear of the seated cord (0.1 mm)."""
+    w, depth, d = SEALS[seal_type(S)]
+    zc, rc = SEAL_Z, depth - d / 2              # cord centre height, and its centre in from the rim face
+    zt = zc + rc - depth + (d / 2 + 0.1) * math.sqrt(2)
+    return zc - w / 2, max(zt, zc - w / 2 + 0.6)
+
+
 def anchor_xs():
     return (ANCHOR_X - ANCHOR_GAP / 2, ANCHOR_X + ANCHOR_GAP / 2)
 
@@ -495,10 +504,15 @@ def back_panel(S, g):
         panel = panel + box(x0 - 2, x1 + 2, Hp / 2 - 2 - LATCH_PAD, Hp / 2 - 1.99, 2.99, 3 + RIM_H)
         panel = panel - prism([(Hp / 2 + 0.6, LATCH_Z - (d + 0.6) / math.tan(math.radians(30))),
                                (Hp / 2 - d, LATCH_Z), (Hp / 2 + 0.6, LATCH_Z + d + 0.6)], x0, x1)
-    # seal groove round the outside of the rim
-    sw, sd, _ = SEALS[seal_type(S)]
-    groove = outer - rr(Wp - 2 * sd, Hp - 2 * sd, max(0, Rp - sd))
-    panel = panel - ext(groove, sw, SEAL_Z - sw / 2)
+    # seal groove round the outside of the rim. The panel prints flat side down, so the groove's
+    # upper face is a 45 degree slope out to the rim face instead of a flat ceiling. The flat
+    # lower face, which the shell pushes the seal against, is unchanged.
+    zb, zt = seal_groove_z(S)
+    sd = SEALS[seal_type(S)][1]
+    bottom = rr(Wp - 2 * sd, Hp - 2 * sd, max(0, Rp - sd))
+    core = ext(bottom, zt - zb + 0.01, zb) + mf.Manifold.batch_hull(
+        [ext(bottom, 0.01, zt), ext(outer, 0.01, zt + sd - 0.01)])
+    panel = panel - (ext(rr(Wp + 4, Hp + 4, Rp + 2), zt + sd - zb, zb) - core)
     if seal_type(S) == "filament":
         panel = seal_anchor(panel, Hp)
     # arm for the grub screw, tied into the bottom rim
