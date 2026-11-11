@@ -169,7 +169,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "",
                 *front_notes(S),
                 "back_panel.stl      any PETG/ASA, flat side down",
-                "Two snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
+                "Three snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
                 seal_note(S),
                 "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
             ]))

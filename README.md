@@ -49,7 +49,7 @@ Details built into the parts:
 - The rim groove is 2.2 × 1.2 mm for 2 mm silicone cord, or 2.0 × 1.1 mm for 1.75 mm TPU filament. Both cords are squeezed about 25–30% by the shell.
 - There's 0.2 mm clearance per side between the back panel and the shell, and a Ø2 mm weep hole in the bottom of the shell.
 - Three Ø3 × 2 mm alignment pins on the back of the face plate fit Ø3.3 × 2.3 mm sockets in the diffuser front, so the two line up exactly for gluing. The pins are in three corners, so the plate only fits one way round. They move inwards automatically if lettering is in the way.
-- Two snap catches inside the top of the shell click into V notches in the back panel's 12 mm rim. Each catch has a 45° front face and a 30° lead-in ramp, so it prints without supports and comes apart with a firm pull. A 0.8 mm lead-in chamfer on the shell's rear edge helps it slide over the seal.
+- Three snap catches inside the top of the shell click into notches in the back panel's 12 mm rim, with 1.4 mm of engagement. Each catch has a 45° front face and a 30° lead-in ramp, and each notch matches that shape. The rim is thickened behind each notch, so it prints without supports and comes apart with a firm pull. A 0.8 mm lead-in chamfer on the shell's rear edge helps it slide over the seal.
 - The TPU filament seal is a plain length of 1.75 mm TPU, not printed. Cut it 2% shorter than the groove so it hugs the groove when stretched on (the designer and the zip's README give the length). Either join it into a ring with a filament splicer, or stretch it round and glue both ends with flexible CA. Put the joint at the bottom centre, where water can't run into it. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.
 
 ## Run with Docker

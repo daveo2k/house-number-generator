@@ -73,7 +73,8 @@ SOCKET_D, SOCKET_DEPTH = 3.3, 2.3              # matching sockets in the diffuse
 SOCKET_BOSS_D, SOCKET_BOSS_H = 7.0, 1.2        # thickens the diffuser wall behind each socket
 RIM_H = 12.0           # back panel rim height (seal groove low down, catch notches above it)
 LATCH_Z = 12.0         # catch position, measured from the wall
-LATCH_DEPTH = 0.9      # how far each catch stands in from the shell's top wall (0.7 mm engagement)
+LATCH_DEPTH = 1.6      # how far each catch stands in from the shell's top wall (1.4 mm engagement)
+LATCH_PAD = 1.6        # thickens the back panel rim behind each notch, so the deeper notch keeps a 2 mm wall
 LATCH_LEN = 18.0
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
@@ -442,7 +443,7 @@ def flip_together(*parts):
 
 
 def latch_xs(g):
-    return (-g["Wp"] / 4, g["Wp"] / 4)
+    return (-g["Wp"] / 3, 0.0, g["Wp"] / 3)
 
 
 def seal_type(S):
@@ -468,10 +469,15 @@ def back_panel(S, g):
     panel = panel + ext(outer - rr(Wp - 4, Hp - 4, max(0, Rp - 2)), RIM_H, 3)
     # notch in the bottom rim so it clears the shell's insert boss
     panel = panel - box(-5.5, 5.5, -Hp / 2 - 1, -Hp / 2 + 2.5, 9, 3 + RIM_H + 1)
-    # V notches in the top rim for the shell's catches (45 degree faces, no supports)
+    # notches in the top rim for the shell's catches. The upper face is 45 degrees (the face that
+    # holds); the lower face follows the catch's 30 degree ramp so the catch seats fully. The tip
+    # is 0.2 mm clear of the catch. A pad inside the rim keeps the wall behind each notch 2 mm thick.
+    d = LATCH_DEPTH
     for xc in latch_xs(g):
-        panel = panel - prism([(Hp / 2 + 0.6, LATCH_Z - 1.5), (Hp / 2 - LATCH_DEPTH, LATCH_Z),
-                               (Hp / 2 + 0.6, LATCH_Z + 1.5)], xc - LATCH_LEN / 2 - 1, xc + LATCH_LEN / 2 + 1)
+        x0, x1 = xc - LATCH_LEN / 2 - 1, xc + LATCH_LEN / 2 + 1
+        panel = panel + box(x0 - 2, x1 + 2, Hp / 2 - 2 - LATCH_PAD, Hp / 2 - 1.99, 2.99, 3 + RIM_H)
+        panel = panel - prism([(Hp / 2 + 0.6, LATCH_Z - (d + 0.6) / math.tan(math.radians(30))),
+                               (Hp / 2 - d, LATCH_Z), (Hp / 2 + 0.6, LATCH_Z + d + 0.6)], x0, x1)
     # seal groove round the outside of the rim
     sw, sd, _ = SEALS[seal_type(S)]
     groove = outer - rr(Wp - 2 * sd, Hp - 2 * sd, max(0, Rp - sd))
