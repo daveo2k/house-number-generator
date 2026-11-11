@@ -297,6 +297,14 @@ tr:last-child td { border-bottom: 0; }
         <summary>Fit and seal</summary>
         <div class="sec">
           <div class="field">
+            <span class="label">Face plate and diffuser</span>
+            <div class="seg" data-key="front">
+              <button type="button" id="fr-sep" data-val="separate">Separate, glued</button>
+              <button type="button" id="fr-tog" data-val="together">Printed together, 2 colours</button>
+            </div>
+          </div>
+          <p class="hintline" id="front-hint"></p>
+          <div class="field" id="pins-field">
             <span class="label">Alignment pins, face plate to diffuser</span>
             <div class="seg" data-key="pins">
               <button type="button" id="pn-on" data-val="1">On</button>
@@ -378,9 +386,9 @@ tr:last-child td { border-bottom: 0; }
       </table>
     </div>
     <div class="notes">
-      <div><h3>Fitting order</h3><ol><li>Glue the face plate to the diffuser. The pins line it up.</li><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Fit the seal into the rim groove. For TPU filament, cut it to the length in the parts list. Either splice it into a ring and stretch it on, or stretch it round and glue both ends with flexible CA. Put the joint at the bottom centre.</li><li>Push the shell over the rim until the two top catches click and the shell meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
+      <div><h3>Fitting order</h3><ol><li id="fit-front">Glue the face plate to the diffuser. The pins line it up.</li><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Fit the seal into the rim groove. For TPU filament, cut it to the length in the parts list. Either splice it into a ring and stretch it on, or stretch it round and glue both ends with flexible CA. Put the joint at the bottom centre.</li><li>Push the shell over the rim until the two top catches click and the shell meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
       <div><h3>Outdoors</h3><p>Print in ASA or PETG for UV and heat resistance. PLA will warp on a sunny wall. Leave a 2 mm weep hole at the lowest corner of the shell.</p></div>
-      <div><h3>Letter islands</h3><p>The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.</p></div>
+      <div><h3>Letter islands</h3><p id="islands-note">The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.</p></div>
     </div>
   </section>
 </div>
@@ -412,7 +420,7 @@ tr:last-child td { border-bottom: 0; }
     gap: 22, offY: 0, divider: true, divT: 2.5, divL: 70,
     W: 250, H: 180, D: 30, T: 3, edge: 'chamfer', edgeSize: 2, radius: 6, overhang: 0, F: 1.6, SW: 2,
     holes: 4, holeType: 'countersunk', holeD: 4, holeInset: 20,
-    plate: '#141416', pins: true, seal: 'cord'
+    plate: '#141416', front: 'separate', pins: true, seal: 'cord'
   };
   const VIEW = { night: true, exploded: false };
   const KEY = 'plaque-designer-v3';
@@ -556,7 +564,7 @@ tr:last-child td { border-bottom: 0; }
     sw.appendChild(b);
   });
 
-  const SEGS = { align: ['s', 0], divider: ['b', 0], edge: ['s', 1], holes: ['n', 1], holeType: ['s', 1], pins: ['b', 0], seal: ['s', 0], night: ['b', 2], exploded: ['b', 2] };
+  const SEGS = { align: ['s', 0], divider: ['b', 0], edge: ['s', 1], holes: ['n', 1], holeType: ['s', 1], front: ['s', 0], pins: ['b', 0], seal: ['s', 0], night: ['b', 2], exploded: ['b', 2] };
   document.querySelectorAll('.seg').forEach(seg => {
     seg.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -578,6 +586,17 @@ tr:last-child td { border-bottom: 0; }
     sw.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.hex === S.plate ? 'true' : 'false'));
     $('edgeSize').disabled = S.edge === 'square';
     $('edge-row').hidden = S.edge === 'square';
+    const tog = S.front === 'together';
+    $('pins-field').hidden = tog;
+    $('front-hint').textContent = tog
+      ? 'Prints as one part on a two-colour printer, face down. Each letter gets a flush white skin as thick as the diffuser front, so no bridges, pins or glue are needed. Use the same material for both colours, such as PETG and PETG, so they bond.'
+      : 'Two parts, glued together. Letter islands are held by bridges on the back of the face plate.';
+    $('fit-front').textContent = tog
+      ? 'The face plate and diffuser are already one part, so there is nothing to glue.'
+      : 'Glue the face plate to the diffuser.' + (S.pins ? ' The pins line it up.' : '');
+    $('islands-note').textContent = tog
+      ? 'The centres of letters such as A, R, O and D are printed onto the diffuser behind them, so they need no bridges. Each letter is a flush white skin, ' + fx(Math.min(S.F, S.T)) + ' mm thick.'
+      : "The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.";
   }
   function syncInputs() {
     $('line1').value = S.line1; $('line2').value = S.line2;
@@ -677,7 +696,10 @@ tr:last-child td { border-bottom: 0; }
     // shell: bottom wall with hole, boss, front wall
     s += R(0, o, 13.3, SW, shell) + R(16.7, o, zDF + F - 16.7, SW, shell);
     s += R(11, b0, 1.9, 6, shell) + R(17.1, b0, 1.9, 6, shell);
-    s += R(zDF, o, F, top - o, shell);
+    const tog = S.front === 'together';
+    const hbL = S.H - m.base2, htL = hbL + S.cap2;
+    if (tog && hbL < Hv) s += R(zDF, o, F, hbL - o, shell) + (htL < top ? R(zDF, htL, F, top - htL, shell) : '');
+    else s += R(zDF, o, F, top - o, shell);
     // insert + grub
     s += R(12.9, b0 + 0.3, 4.2, 5.7, 'var(--brass)');
     const gb = o + Math.max(0.5, SW - 1);
@@ -696,6 +718,7 @@ tr:last-child td { border-bottom: 0; }
     s += '<path d="M' + zF + ' ' + y(0) + ' L' + (D - c) + ' ' + y(0) + edge + ' L' + D + ' ' + y(fTop) + ' L' + zF + ' ' + y(fTop) + ' Z" fill="' + face + '" stroke="var(--p-face-stroke)" stroke-width=".25"/>';
     if (showLetter) {
       if (ht < top) s += R(zF, ht, Tt, top - ht, face, 'var(--p-face-stroke)');
+      if (tog) { const sk = Math.min(F, Tt); s += R(D - sk, hb, sk, Math.min(ht, top) - hb, shell); }
     }
     // overhang dimension
     if (o > 0) s += '<g stroke="var(--accent)" stroke-width=".25">' + L(zF - 2, y(0), zF - 2, y(o)) + L(zF - 3, y(0), zF - 1, y(0)) + L(zF - 3, y(o), zF - 1, y(o)) + '</g>';
@@ -707,7 +730,7 @@ tr:last-child td { border-bottom: 0; }
     const lx = D + 12;
     const edgeTxt = c > 0 ? (S.edge === 'round' ? 'R' + fx(c) + ' edge' : fx(c) + ' chamfer') : 'square edge';
     const labels = [
-      showLetter ? [D - Tt / 2, (hb + Math.min(ht, Hv)) / 2, 'Letter cut-out, lit from behind'] : null,
+      showLetter ? [D - Tt / 2, (hb + Math.min(ht, Hv)) / 2, tog ? 'Letter, white skin ' + fx(Math.min(F, Tt)) : 'Letter cut-out, lit from behind'] : null,
       [D - Tt / 2, Math.min(o + 10, fTop / 2), 'Face plate ' + fx(Tt) + ' · ' + edgeTxt],
       [zDF + F / 2, o + 36, 'Diffuser front ' + fx(F)],
       [3.8, o + 28, 'LED strip · ' + fx(g.throw_) + ' throw'],
@@ -786,12 +809,17 @@ tr:last-child td { border-bottom: 0; }
     const sR = Math.max(0, g.Rp - inset);
     const loop = 2 * (g.Wp - 2 * inset + g.Hp - 2 * inset) - (8 - 2 * Math.PI) * sR;
     const cut = loop * 0.98;
+    const tog = S.front === 'together';
+    let n = 0; const num = t => (++n) + ' · ' + t;
+    const frontRows = tog
+      ? [['var(--p-face)', num('Face plate + diffuser'), 'Two colours, same material (e.g. black + white PETG)', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.D), 'One part, printed face down. Black face plate (front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + ') with a flush white skin ' + fx(Math.min(S.F, S.T)) + ' mm thick in each letter. The white diffuser shell is built on top: ' + fx(S.F) + ' mm front, ' + fx(S.SW) + ' mm sides, two snap catches, and the boss for the M3 insert. No bridges, pins or glue. Load both STLs as one object with two parts.']]
+      : [['var(--p-face)', num('Face plate'), 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.'],
+        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Two snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
     $('parts').innerHTML = [
-      ['var(--p-face)', '1 · Face plate', 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.'],
-      ['var(--p-diff)', '2 · Diffuser shell', 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Two snap catches inside the top, and a boss underneath for the M3 insert and grub screw.'],
-      ['var(--p-back)', '3 · Back panel', 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and two catch notches at the top. ' + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
-      ...(tpu ? [['#e0603a', '4 · TPU seal', '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm, 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on. Splice it into a ring, or glue both ends with flexible CA. Put the joint at the bottom centre. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
-      ['var(--brass)', (tpu ? '5' : '4') + ' · Hardware', 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
+      ...frontRows,
+      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and two catch notches at the top. ' + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
+      ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm, 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on. Splice it into a ring, or glue both ends with flexible CA. Put the joint at the bottom centre. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
+      ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
     ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
     // warnings
     const w = [];
@@ -888,7 +916,7 @@ tr:last-child td { border-bottom: 0; }
       rig.rotation.set(pitch, yaw, 0);
       const P = three.parts;
       if (P.face) {
-        P.face.position.z = 110 * ev;
+        P.face.position.z = (S.front === 'together' ? 60 : 110) * ev;
         P.shell.position.z = 60 * ev;
         P.grub.position.set(0, -26 * ev, 60 * ev);
       }

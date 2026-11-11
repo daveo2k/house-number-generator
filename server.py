@@ -64,9 +64,27 @@ def clean(raw):
     sizes = raw.get("sizes") or [60]
     S["sizes"] = [min(400.0, max(5.0, float(v))) for v in list(sizes)[:8]]
     S["divider"] = bool(raw.get("divider"))
-    S["pins"] = bool(raw.get("pins", True))
+    S["front"] = "together" if raw.get("front") == "together" else "separate"
+    S["pins"] = bool(raw.get("pins", True)) and S["front"] == "separate"
     S["seal"] = make_stl.seal_type(raw)
     return S
+
+
+def front_notes(S):
+    if S["front"] == "together":
+        return [
+            "Face plate and diffuser print together as one two-colour part, front-face down.",
+            "  Import front_1_face_black.stl and front_2_diffuser_white.stl together and choose",
+            "  to load them as one object with multiple parts. Then set part 1 to black and",
+            "  part 2 to white. Use the same material for both (e.g. PETG + PETG) so they bond.",
+            "  Each letter has a flush white skin. No bridges, no alignment pins, no glue.",
+        ]
+    return [
+        "face_plate.stl      black ASA/PETG, already front-face down",
+        "diffuser_shell.stl  white PETG, already front-face down",
+        ("Alignment: 3 pins on the face plate fit sockets in the diffuser (keyed, one way round)."
+         if S["pins"] else "No alignment pins: line the face plate up by eye when gluing."),
+    ]
 
 
 def seal_note(S):
@@ -139,10 +157,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "",
                 *[make_stl.describe(name, m) for name, (m, _) in parts.items()],
                 "",
-                "face_plate.stl      black ASA/PETG, already front-face down",
-                "diffuser_shell.stl  white PETG, already front-face down",
+                *front_notes(S),
                 "back_panel.stl      any PETG/ASA, flat side down",
-                "Alignment: 3 pins on the face plate fit sockets in the diffuser (keyed, one way round).",
                 "Two snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
                 seal_note(S),
                 "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",

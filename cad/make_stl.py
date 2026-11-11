@@ -7,6 +7,12 @@ Reads the JSON from the designer's "Copy settings" button and writes three STLs:
   diffuser_shell.stl - white light box: front + sides, grub screw boss and insert hole
   back_panel.stl     - wall plate with rim, seal groove, screw holes, cable hole, grub arm
 
+With "front": "together" the face plate and diffuser print as one two-colour part instead:
+
+  front_1_face_black.stl     - face plate, no bridges or pins
+  front_2_diffuser_white.stl - diffuser shell plus a flush white skin in each letter
+
+The two share one coordinate frame, so they load as one object with two parts.
 Each part is placed ready to print (largest flat face on the bed).
 
 Usage:
@@ -283,7 +289,7 @@ def stl_bytes(m):
 
 def describe(name, m):
     b = m.bounding_box()
-    return (f"{name:20s} {b[3]-b[0]:6.1f} x {b[4]-b[1]:6.1f} x {b[5]-b[2]:5.1f} mm   "
+    return (f"{name:28s} {b[3]-b[0]:6.1f} x {b[4]-b[1]:6.1f} x {b[5]-b[2]:5.1f} mm   "
             f"{m.volume()/1000:7.1f} cm3")
 
 
@@ -335,7 +341,12 @@ def pin_positions(S, g, letters):
 
 
 # ---------------------------------------------------------------- parts
-def face_plate(S, g, letters, pins=()):
+def together(S):
+    """True when the face plate and diffuser print as one two-colour part."""
+    return S.get("front") == "together"
+
+
+def face_plate(S, g, letters, pins=(), with_bridges=True):
     W, H, T, e, R = S["W"], S["H"], S["T"], g["e"], g["R"]
     outline = rr(W, H, R)
     if e > 0.01:
@@ -358,13 +369,13 @@ def face_plate(S, g, letters, pins=()):
     else:
         plate = ext(outline, T)
     plate = plate - ext(to_cs(letters), T + 2, -1)
-    br = bridges(letters)
+    br = bridges(letters) if with_bridges else None
     if br is not None and not br.is_empty:
         plate = plate + ext(to_cs(br), BRIDGE_T)
     for x, y in pins:   # pins stand off the back face (z < 0), with a chamfered tip
         plate = plate + cyl_z(x, y, -(PIN_H - PIN_TIP), 0.01, PIN_D)
         plate = plate + cyl_z(x, y, -PIN_H, -(PIN_H - PIN_TIP) + 0.001, PIN_D - 2 * PIN_TIP, PIN_D)
-    return flip_for_print(plate)
+    return plate
 
 
 def diffuser_shell(S, g, pins=()):
@@ -397,7 +408,26 @@ def diffuser_shell(S, g, pins=()):
     for x, y in pins:
         shell = shell + cyl_z(x, y, zDF - SOCKET_BOSS_H, zDF + 0.01, SOCKET_BOSS_D)
         shell = shell - cyl_z(x, y, front - SOCKET_DEPTH, front + 1, SOCKET_D)
-    return flip_for_print(shell)
+    return shell
+
+
+def letter_skin(S, g, letters):
+    """For the two-colour front: a white skin filling each letter flush with the face, as thick as
+    the diffuser front, so light passes through the same thickness of white as the separate parts.
+    The diffuser front is cut away behind the letters to keep it that way. Returns (skin, pocket)."""
+    D, T, F = S["D"], S["T"], S["F"]
+    skin_t = min(F, T)
+    cs = to_cs(letters)
+    skin = ext(cs, skin_t, D - skin_t)
+    pocket = ext(cs, D - skin_t - g["zDF"] + 1, g["zDF"] - 1)
+    return skin, pocket
+
+
+def flip_together(*parts):
+    """Flip several parts face-down with one shared transform, so they stay registered."""
+    parts = [m.rotate((180, 0, 0)) for m in parts]
+    z0 = min(m.bounding_box()[2] for m in parts)
+    return [m.translate((0, 0, -z0)) for m in parts]
 
 
 def latch_xs(g):
@@ -459,12 +489,19 @@ def build(S):
     """Build all parts. Returns {filename: (manifold, stl_bytes)}."""
     g = derive(S)
     letters = lettering(S)
-    pins = pin_positions(S, g, letters)
-    parts = {
-        "face_plate.stl": face_plate(S, g, letters, pins),
-        "diffuser_shell.stl": diffuser_shell(S, g, pins),
-        "back_panel.stl": back_panel(S, g),
-    }
+    if together(S):
+        plate = face_plate(S, g, letters, with_bridges=False).translate((0, 0, S["D"] - S["T"]))
+        skin, pocket = letter_skin(S, g, letters)
+        white = (diffuser_shell(S, g) - pocket) + skin
+        black, white = flip_together(plate, white)
+        parts = {"front_1_face_black.stl": black, "front_2_diffuser_white.stl": white}
+    else:
+        pins = pin_positions(S, g, letters)
+        parts = {
+            "face_plate.stl": flip_for_print(face_plate(S, g, letters, pins)),
+            "diffuser_shell.stl": flip_for_print(diffuser_shell(S, g, pins)),
+        }
+    parts["back_panel.stl"] = back_panel(S, g)
     return {name: (m, stl_bytes(m)) for name, m in parts.items()}
 
 
