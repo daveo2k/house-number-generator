@@ -376,7 +376,8 @@ tr:last-child td { border-bottom: 0; }
           <div class="field">
             <span class="label">Face plate and diffuser</span>
             <div class="seg" data-key="front">
-              <button type="button" id="fr-sep" data-val="separate">Separate, glued</button>
+              <button type="button" id="fr-scr" data-val="screwed">Screwed, removable</button>
+              <button type="button" id="fr-sep" data-val="separate">Glued</button>
               <button type="button" id="fr-tog" data-val="together">Printed together, 2 colours</button>
             </div>
           </div>
@@ -396,7 +397,7 @@ tr:last-child td { border-bottom: 0; }
               <button type="button" id="sl-tpu" data-val="filament">1.75 mm TPU filament</button>
             </div>
           </div>
-          <p class="hintline">Three Ø3 × 2 mm pins on the back of the face plate fit sockets in the diffuser. They're in three corners, so the plate only goes on one way round. Three snap catches inside the top of the shell click into notches in the back panel, and the grub screw locks the bottom. For the TPU option, use a plain length of 1.75 mm TPU filament, unprinted. The groove is sized for it, and the parts list gives the length to cut. Both ends go through two holes in the bottom of the rim and fold back into a pinch slot inside, so you don't need glue.</p>
+          <p class="hintline"><span id="pins-hint">Three Ø3 × 2 mm pins on the back of the face plate fit sockets in the diffuser. They're in three corners, so the plate only goes on one way round. </span>Three snap catches inside the top of the shell click into notches in the back panel, and the grub screw locks the bottom. For the TPU option, use a plain length of 1.75 mm TPU filament, unprinted. The groove is sized for it, and the parts list gives the length to cut. Both ends go through two holes in the bottom of the rim and fold back into a pinch slot inside, so you don't need glue.</p>
         </div>
       </details>
 
@@ -499,7 +500,7 @@ tr:last-child td { border-bottom: 0; }
     halign1: 'centre', halign2: 'centre', halignDiv: 'centre', marginX: 25,
     W: 250, H: 180, D: 30, T: 3, edge: 'chamfer', edgeSize: 2, radius: 6, overhang: 0, F: 1.6, SW: 2,
     holes: 4, holeType: 'countersunk', holeD: 4, holeInset: 20,
-    plate: '#141416', front: 'separate', recess: 1.5, pins: true, seal: 'cord'
+    plate: '#141416', front: 'screwed', recess: 1.5, pins: true, seal: 'cord'
   };
   const VIEW = { night: true, exploded: false };
   const KEY = 'plaque-designer-v3';
@@ -707,6 +708,7 @@ tr:last-child td { border-bottom: 0; }
       if (kind !== 2) changed(kind === 1);
     });
   });
+  const fixCount = () => geo().Ws > 200 ? 6 : 4;
   function syncPressed() {
     document.querySelectorAll('.seg').forEach(seg => {
       const key = seg.dataset.key, [t, kind] = SEGS[key], cur = kind === 2 ? VIEW[key] : S[key];
@@ -721,19 +723,24 @@ tr:last-child td { border-bottom: 0; }
     else $('div-hint').textContent = 'Thickness is the line width, the dot size, or the widest point of the tapered line. Length is a percentage of the plate width. The mark is cut through and lights up like the letters, in the middle of the gap between the lines.';
     $('edgeSize').disabled = S.edge === 'square';
     $('edge-row').hidden = S.edge === 'square';
-    const tog = S.front === 'together';
+    const tog = S.front === 'together', scr = S.front === 'screwed';
     const rc = Math.min(S.recess, S.T);
-    $('pins-field').hidden = tog;
+    $('pins-field').hidden = tog || scr;
+    $('pins-hint').hidden = tog || scr || !S.pins;
     $('recess-field').hidden = !tog;
     $('front-hint').textContent = tog
       ? 'Prints as one part on a two-colour printer, face down. Each letter gets a white skin as thick as the diffuser front, so no bridges, pins or glue are needed. Use the same material for both colours, such as PETG and PETG, so they bond. '
         + (rc > 0.05
           ? 'The letters sit ' + fx(rc) + ' mm back from the face. A third STL of PLA plugs fills the recesses while printing. Put it on the white nozzle and pop the plugs out afterwards. 0 makes the letters flush, and ' + fx(S.T) + ' sets them as deep as the separate version.'
           : 'The letters are flush with the face, so no plugs are needed.')
-      : 'Two parts, glued together. Letter islands are held by bridges on the back of the face plate.';
+      : scr
+        ? 'Two parts, screwed together so a weathered face plate can be replaced. Bosses on the back of the face plate hold M3 heat-set inserts and sit in pockets in the diffuser front. ' + fixCount() + ' M3 × 10 screws go in from inside the shell, so nothing shows on the front. One in each corner' + (fixCount() > 4 ? ', plus mid top and mid bottom on a plate this wide' : '') + '. They move along the edge if lettering is in the way. To swap the plate, take the shell off the wall and undo the screws.'
+        : 'Two parts, glued together. Letter islands are held by bridges on the back of the face plate.';
     $('fit-front').textContent = tog
       ? 'The face plate and diffuser are already one part, so there is nothing to glue.'
-      : 'Glue the face plate to the diffuser.' + (S.pins ? ' The pins line it up.' : '');
+      : scr
+        ? 'Heat-set an M3 insert into each boss on the back of the face plate. Fit the bosses into the pockets in the diffuser front, then screw the plate on from inside the shell with the M3 × 10 screws.'
+        : 'Glue the face plate to the diffuser.' + (S.pins ? ' The pins line it up.' : '');
     $('islands-note').textContent = tog
       ? 'The centres of letters such as A, R, O and D are printed onto the diffuser behind them, so they need no bridges. Each letter is a white skin ' + fx(Math.min(S.F, S.T)) + ' mm thick, ' + (rc > 0.05 ? 'set ' + fx(rc) + ' mm back from the face.' : 'flush with the face.')
       : "The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.";
@@ -950,19 +957,19 @@ tr:last-child td { border-bottom: 0; }
     const sR = Math.max(0, g.Rp - inset);
     const loop = 2 * (g.Wp - 2 * inset + g.Hp - 2 * inset) - (8 - 2 * Math.PI) * sR;
     const cut = tpu ? (loop - 4) * 0.98 + 2 * 25 : loop;  // ANCHOR_GAP, FILAMENT_STRETCH, ANCHOR_TAIL
-    const tog = S.front === 'together';
+    const tog = S.front === 'together', scr = S.front === 'screwed';
     let n = 0; const num = t => (++n) + ' · ' + t;
     const frontRows = tog
       ? [['var(--p-face)', num('Face plate + diffuser'), 'Two colours, same material (e.g. black + white PETG)', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.D), 'One part, printed face down. Black face plate (front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + ') with a white skin ' + fx(Math.min(S.F, S.T)) + ' mm thick in each letter, ' + (Math.min(S.recess, S.T) > 0.05 ? 'set ' + fx(Math.min(S.recess, S.T)) + ' mm back' : 'flush with the face') + '. The white diffuser shell is built on top: ' + fx(S.F) + ' mm front, ' + fx(S.SW) + ' mm sides, three snap catches, and the boss for the M3 insert. No bridges, pins or glue. Load the STLs together as one object with several parts.']].concat(Math.min(S.recess, S.T) > 0.05
         ? [['#9aa0a6', num('Recess plugs'), 'PLA or Support for PETG', fx(Math.min(S.recess, S.T)) + ' deep', 'Fills the letter recesses while printing. Assign it to the white nozzle: it only prints below the white, so there is one filament swap. Pop the plugs out afterwards with a pick.']]
         : [])
-      : [['var(--p-face)', num('Face plate'), 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.'],
-        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
+      : [['var(--p-face)', num('Face plate'), 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (scr ? fixCount() + ' Ø8 bosses on the back for M3 heat-set inserts. Screwed to the diffuser from behind, so it can be replaced.' : (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.')],
+        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (scr ? fixCount() + ' pockets for the face plate bosses, with screw holes from inside. ' : S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
     $('parts').innerHTML = [
       ...frontRows,
       ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and three catch notches at the top. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
       ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm. That is 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on, plus 25 mm at each end for the anchor. Push one end through each anchor hole at the bottom, fold the tail back and press it down into the slot above. Trim any spare. No glue needed. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
-      ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
+      ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). ' + (scr ? (fixCount() + 1) + ' × M3 × 5.7 heat-set inserts (Ø4.0 hole), one for the grub and one per face plate boss. ' + fixCount() + ' × M3 × 10 socket cap screws, stainless, for the face plate. ' : 'M3 × 5.7 heat-set insert (Ø4.0 hole). ') + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
     ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
     // warnings
     const w = [];

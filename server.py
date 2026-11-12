@@ -72,7 +72,7 @@ def clean(raw):
         S["marginX"] = min(150.0, max(5.0, float(raw.get("marginX", 25))))
     except (TypeError, ValueError):
         raise ValueError("Invalid setting: marginX")
-    S["front"] = "together" if raw.get("front") == "together" else "separate"
+    S["front"] = raw.get("front") if raw.get("front") in ("together", "screwed") else "separate"
     try:
         S["recess"] = min(S["T"], max(0.0, float(raw.get("recess", 0))))
     except (TypeError, ValueError):
@@ -97,6 +97,18 @@ def front_notes(S):
             "  Load all three together so they keep their positions, and don't move the parts.",
             "  Pop the plugs out afterwards with a pick.",
         ] if S["recess"] > 0.05 else ["  Letters are flush white skins."])
+    if S["front"] == "screwed":
+        g = make_stl.derive(S)
+        n = len(make_stl.fix_positions(S, g, make_stl.lettering(S)))
+        L = make_stl.fix_screw_len(S)
+        return [
+            "face_plate.stl      black ASA/PETG, already front-face down",
+            "diffuser_shell.stl  white PETG, already front-face down",
+            f"Removable face plate: {n} bosses on its back. Heat-set an M3 x 5.7 insert into each",
+            "  (they're on the back, so nothing shows on the face). The bosses sit in pockets in the",
+            f"  diffuser front. Screw on from inside the shell with {n} x M3 x {L} socket cap screws.",
+            "  To replace the plate: undo the grub screw, slide the shell off the wall, undo the screws.",
+        ]
     return [
         "face_plate.stl      black ASA/PETG, already front-face down",
         "diffuser_shell.stl  white PETG, already front-face down",
@@ -180,7 +192,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "back_panel.stl      any PETG/ASA, flat side down",
                 "Three snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
                 seal_note(S),
-                "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
+                "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert"
+                + (" (plus one per face plate fixing)." if S["front"] == "screwed" else "."),
             ]))
         name = slug(S) + "-stl.zip"
         self._send(200, buf.getvalue(), "application/zip",

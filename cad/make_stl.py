@@ -15,6 +15,10 @@ With "front": "together" the face plate and diffuser print as one two-colour par
                                while printing, then pop out (PLA barely sticks to PETG)
 
 They share one coordinate frame, so they load as one object with several parts.
+
+With "front": "screwed" the face plate is separate and removable, so a weathered plate can be
+replaced. Bosses on its back hold M3 heat-set inserts and sit in pockets in the diffuser front.
+M3 screws go in from inside the shell (take it off the wall first), so nothing shows on the front.
 Each part is placed ready to print (largest flat face on the bed).
 
 Usage:
@@ -87,6 +91,18 @@ LATCH_Z = 12.0         # catch position, measured from the wall
 LATCH_DEPTH = 1.6      # how far each catch stands in from the shell's top wall (1.4 mm engagement)
 LATCH_PAD = 1.6        # thickens the back panel rim behind each notch, so the deeper notch keeps a 2 mm wall
 LATCH_LEN = 18.0
+# Removable face plate ("front": "screwed"). Each fixing is a boss on the back of the face plate
+# holding an M3 x 5.7 heat-set insert, sitting in a pocket in the diffuser front. Behind the pocket
+# a 45 degree cone (prints without support, face down) leads to a floor the screw head bears on.
+FIX_BOSS_D = 8.0       # face plate boss
+FIX_FRONT_SKIN = 1.2   # solid plate left in front of the insert hole, so nothing shows on the face
+FIX_POCKET_CLEAR = 0.2 # per side, boss to pocket
+FIX_FLOOR = 2.0        # diffuser material under the screw head
+FIX_DBOSS_D = 12.0     # diffuser boss round the pocket
+FIX_SCREW_CLEAR = 3.4
+FIX_INSET = 12.0       # fixing centre in from the inside of the shell wall
+FIX_MID_W = 200.0      # shells wider than this get a fixing at mid top and mid bottom as well
+FIX_MID_BOTTOM_X = 20.0  # bottom middle fixing sits right of centre, clear of the grub screw boss
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
 HALIGNS = ("left", "centre", "right")
@@ -409,13 +425,48 @@ def pin_positions(S, g, letters):
     return out
 
 
+def fix_boss_h(S):
+    """Height of the face plate boss behind the plate, so the insert hole stops FIX_FRONT_SKIN
+    short of the face."""
+    return max(2.0, INSERT_L + 0.3 - (S["T"] - FIX_FRONT_SKIN))
+
+
+def fix_positions(S, g, letters):
+    """Fixings for the removable face plate: one in each corner, plus mid top and mid bottom on
+    wide plates. Each slides along the edge until its diffuser boss is clear of the lettering
+    (the boss would cast a shadow behind a letter)."""
+    if not screwed(S):
+        return []
+    inset = S["SW"] + FIX_INSET + g["Rs"] * 0.3
+    x, y = g["Ws"] / 2 - inset, g["Hs"] / 2 - inset
+    keep_out = letters.buffer(1.5)
+    starts = [(-x, y, 1), (x, y, -1), (-x, -y, 1), (x, -y, -1)]   # (x, y, slide direction)
+    if g["Ws"] > FIX_MID_W:
+        starts += [(0.0, y, 1), (FIX_MID_BOTTOM_X, -y, 1)]
+    out = []
+    for px, py, d in starts:
+        for _ in range(40):
+            if abs(px) > x + 0.01:
+                break
+            if not Point(px, py).buffer(FIX_DBOSS_D / 2).intersects(keep_out):
+                out.append((px, py))
+                break
+            px += d * 3
+    return out
+
+
 # ---------------------------------------------------------------- parts
 def together(S):
     """True when the face plate and diffuser print as one two-colour part."""
     return S.get("front") == "together"
 
 
-def face_plate(S, g, letters, pins=(), with_bridges=True):
+def screwed(S):
+    """True when the face plate is screwed to the diffuser from behind, so it can be replaced."""
+    return S.get("front") == "screwed"
+
+
+def face_plate(S, g, letters, pins=(), with_bridges=True, fixings=()):
     W, H, T, e, R = S["W"], S["H"], S["T"], g["e"], g["R"]
     outline = rr(W, H, R)
     if e > 0.01:
@@ -444,10 +495,14 @@ def face_plate(S, g, letters, pins=(), with_bridges=True):
     for x, y in pins:   # pins stand off the back face (z < 0), with a chamfered tip
         plate = plate + cyl_z(x, y, -(PIN_H - PIN_TIP), 0.01, PIN_D)
         plate = plate + cyl_z(x, y, -PIN_H, -(PIN_H - PIN_TIP) + 0.001, PIN_D - 2 * PIN_TIP, PIN_D)
+    bh = fix_boss_h(S)
+    for x, y in fixings:   # bosses behind the plate, each with a blind hole for a heat-set insert
+        plate = plate + cyl_z(x, y, -bh, 0.01, FIX_BOSS_D)
+        plate = plate - cyl_z(x, y, -bh - 1, T - FIX_FRONT_SKIN, INSERT_D)
     return plate
 
 
-def diffuser_shell(S, g, pins=()):
+def diffuser_shell(S, g, pins=(), fixings=()):
     SW, F, zDF = S["SW"], S["F"], g["zDF"]
     Ws, Hs, Rs = g["Ws"], g["Hs"], g["Rs"]
     yb = -Hs / 2                       # outer bottom face
@@ -477,7 +532,26 @@ def diffuser_shell(S, g, pins=()):
     for x, y in pins:
         shell = shell + cyl_z(x, y, zDF - SOCKET_BOSS_H, zDF + 0.01, SOCKET_BOSS_D)
         shell = shell - cyl_z(x, y, front - SOCKET_DEPTH, front + 1, SOCKET_D)
+    # removable face plate: a pocket for each plate boss, a 45 degree cone behind it, then a floor
+    # with a clearance hole. The screw goes in from inside the shell and its head bears on the floor.
+    pd = FIX_BOSS_D + 2 * FIX_POCKET_CLEAR
+    z_pocket = front - fix_boss_h(S) - 0.3
+    z_cone = z_pocket - (pd - FIX_SCREW_CLEAR) / 2
+    z_head = z_cone - FIX_FLOOR
+    for x, y in fixings:
+        shell = shell + cyl_z(x, y, z_head, zDF + 0.01, FIX_DBOSS_D)
+        shell = shell - cyl_z(x, y, z_pocket, front + 1, pd)
+        shell = shell - cyl_z(x, y, z_cone, z_pocket + 0.01, FIX_SCREW_CLEAR, pd)
+        shell = shell - cyl_z(x, y, z_head - 1, z_cone + 0.01, FIX_SCREW_CLEAR)
     return shell
+
+
+def fix_screw_len(S):
+    """Screw length for the removable face plate: from the diffuser floor into the insert, the
+    longest standard length that stops 0.5 mm short of the end of the insert hole."""
+    room = fix_boss_h(S) + 0.3 + (FIX_BOSS_D + 2 * FIX_POCKET_CLEAR - FIX_SCREW_CLEAR) / 2 + FIX_FLOOR \
+        + (S["T"] - FIX_FRONT_SKIN) - 0.5
+    return max(L for L in (6, 8, 10, 12, 16) if L <= room)
 
 
 def recess(S):
@@ -627,10 +701,11 @@ def build(S):
         if plugs is not None:
             parts["front_3_plugs_pla.stl"] = flipped[2]
     else:
-        pins = pin_positions(S, g, letters)
+        fixings = fix_positions(S, g, letters)
+        pins = [] if screwed(S) else pin_positions(S, g, letters)
         parts = {
-            "face_plate.stl": flip_for_print(face_plate(S, g, letters, pins)),
-            "diffuser_shell.stl": flip_for_print(diffuser_shell(S, g, pins)),
+            "face_plate.stl": flip_for_print(face_plate(S, g, letters, pins, fixings=fixings)),
+            "diffuser_shell.stl": flip_for_print(diffuser_shell(S, g, pins, fixings)),
         }
     parts["back_panel.stl"] = back_panel(S, g)
     return {name: (m, stl_bytes(m)) for name, m in parts.items()}
