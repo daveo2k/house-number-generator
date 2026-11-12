@@ -466,7 +466,7 @@ tr:last-child td { border-bottom: 0; }
     </div>
     <div class="notes">
       <div><h3>Fitting order</h3><ol><li id="fit-front">Glue the face plate to the diffuser. The pins line it up.</li><li>Screw the back panel to the wall and feed the cable through the gland.</li><li>Connect the LED strip, which is stuck to the back panel.</li><li>Fit the seal into the rim groove. For TPU filament, cut it to the length in the parts list. Push one end through an anchor hole at the bottom, fold it back and press it into the slot above. Stretch the filament round the groove, then anchor the other end in the second hole the same way.</li><li>Push the shell over the rim until the three top catches click and the shell meets the wall.</li><li>Tighten the grub screw from below with a 1.5 mm hex key.</li></ol></div>
-      <div><h3>Outdoors</h3><p>Print in ASA or PETG for UV and heat resistance. PLA will warp on a sunny wall. Leave a 2 mm weep hole at the lowest corner of the shell.</p></div>
+      <div><h3>Outdoors</h3><p>Print in ASA or PETG for UV and heat resistance. PLA will warp on a sunny wall. A 2 mm weep hole in the bottom of the shell, near the front left corner, lets any condensation out. It sits in front of the back panel's rim, so the rim can't block it.</p></div>
       <div><h3>Letter islands</h3><p id="islands-note">The centres of letters such as A, R, O and D are held by 1 mm bridges on the back of the face plate. They sit 2 mm behind the front face, so they're hard to see once the plaque is lit.</p></div>
     </div>
   </section>
@@ -526,7 +526,7 @@ tr:last-child td { border-bottom: 0; }
     const R = Math.max(0, Math.min(S.radius, Math.min(S.W, S.H) / 2 - 1));
     const Rs = Math.max(0, R - o);
     const e = S.edge === 'square' ? 0 : Math.max(0, Math.min(S.edgeSize, S.T - 0.6));
-    const Wp = Ws - 2 * S.SW - 0.4, Hp = Hs - 2 * S.SW - 0.4, Rp = Math.max(0, Rs - S.SW - 0.2);
+    const Wp = Ws - 2 * S.SW - 0.9, Hp = Hs - 2 * S.SW - 0.9, Rp = Math.max(0, Rs - S.SW - 0.45);   // CLEAR = 0.45 in cad/make_stl.py
     const zDF = S.D - S.T - S.F;                 // rear face of diffuser front wall
     const throw_ = zDF - 3 - 1.6;                 // LED surface to diffuser
     const rows = Math.max(2, Math.round((Hp - 40) / 45));
@@ -832,11 +832,11 @@ tr:last-child td { border-bottom: 0; }
     s += '<rect x="-9" y="-3" width="9" height="' + (Hv + 17) + '" fill="url(#hatch)"/>' + L(0, -3, 0, Hv + 14).replace('/>', ' stroke="var(--muted)" stroke-width=".4"/>');
     // back panel base, rim, arm
     s += R(0, b0 + 0.2, 3, top - b0 - 0.2, back);
-    s += R(3, b0 + 0.2, 6, 2, back);
+    s += R(3, b0 + 0.45, 7, 2, back);   // bottom rim, lowered to 7 mm
     s += S.seal === 'filament'
       ? '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".8" fill="#e0603a" stroke="var(--fg)" stroke-width=".15"/>'
       : '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".9" fill="var(--fg)"/>';
-    s += R(3, b0 + 6.5, 10.4, 3, back) + R(16.6, b0 + 6.5, 2.4, 3, back);
+    s += R(3, b0 + 7.5, 10.4, 3, back) + R(16.6, b0 + 7.5, 2.4, 3, back);   // grub arm, 1.5 mm above the boss
     // LED and light
     s += R(3, o + 24, 1.6, 8, 'var(--led)');
     s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + L(4.8, y(o + 28), zDF - .2, y(o + 28)) + L(4.8, y(o + 29), zDF - .2, y(o + 42)) + L(4.8, y(o + 27), zDF - .2, y(o + 15)) + '</g>';
@@ -849,8 +849,8 @@ tr:last-child td { border-bottom: 0; }
     else s += R(zDF, o, F, top - o, shell);
     // insert + grub
     s += R(12.9, b0 + 0.3, 4.2, 5.7, 'var(--brass)');
-    const gb = o + Math.max(0.5, SW - 1);
-    s += R(13.5, gb, 3, b0 + 9 - gb, 'var(--brass)');
+    const gb = o + Math.max(0.5, SW - 0.5);
+    s += R(13.5, gb, 3, b0 + 9.5 - gb, 'var(--brass)');
     s += '<g stroke="var(--fg)" stroke-width=".15" opacity=".55">' + [0, 1, 2, 3, 4, 5].map(i => L(13.5, y(gb + 1 + i * 1.5), 16.5, y(gb + 1.5 + i * 1.5))).join('') + '</g>';
     // face plate with letter cut and edge profile
     const zF = D - Tt;
@@ -881,7 +881,7 @@ tr:last-child td { border-bottom: 0; }
       [D - Tt / 2, Math.min(o + 10, fTop / 2), 'Face plate ' + fx(Tt) + ' · ' + edgeTxt],
       [zDF + F / 2, o + 36, 'Diffuser front ' + fx(F)],
       [3.8, o + 28, 'LED strip · ' + fx(g.throw_) + ' throw'],
-      [8, b0 + 8, 'Back panel arm, Ø3.2 hole'],
+      [8, b0 + 9, 'Back panel arm, Ø3.2 hole'],
       [6, b0 + 0.2, S.seal === 'filament' ? '1.75 TPU filament seal' : 'Silicone cord seal'],
       [15, b0 + 4, 'M3 heat-set insert'],
       [24, o + SW / 2, 'Diffuser side ' + fx(SW)],
@@ -967,8 +967,8 @@ tr:last-child td { border-bottom: 0; }
         ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. Flat front that shows through the letters. ' + (scr ? fixCount() + ' pockets for the face plate bosses, with screw holes from inside. ' : S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
     $('parts').innerHTML = [
       ...frontRows,
-      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate, 12 mm rim with a seal groove and three catch notches at the top. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
-      ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm. That is 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on, plus 25 mm at each end for the anchor. Push one end through each anchor hole at the bottom, fold the tail back and press it down into the slot above. Trim any spare. No glue needed. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.45 mm.']] : []),
+      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate with a rim and seal groove all round. The rim is 12 mm along the top for the three catch notches and 7 mm on the sides and bottom. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
+      ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm. That is 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on, plus 25 mm at each end for the anchor. Push one end through each anchor hole at the bottom, fold the tail back and press it down into the slot above. Trim any spare. No glue needed. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.2 mm.']] : []),
       ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). ' + (scr ? (fixCount() + 1) + ' × M3 × 5.7 heat-set inserts (Ø4.0 hole), one for the grub and one per face plate boss. ' + fixCount() + ' × M3 × 10 socket cap screws, stainless, for the face plate. ' : 'M3 × 5.7 heat-set insert (Ø4.0 hole). ') + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. Cable gland.']
     ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
     // warnings
@@ -1133,7 +1133,10 @@ tr:last-child td { border-bottom: 0; }
     const backG = new THREE.Group(); plaque.add(backG);
     const Wp = g.Wp, Hp = g.Hp, Hs = g.Hs;
     mesh(ext(rrShape(Wp, Hp, g.Rp), 3), M.back, 0, backG);
-    mesh(ext(ring(Wp, Hp, g.Rp, 2), 12), M.back, 3, backG);
+    mesh(ext(ring(Wp, Hp, g.Rp, 2), 7), M.back, 3, backG);   // rim, 7 mm on the sides and bottom
+    const band = Math.max(10, g.Rp + 4);                     // and 12 mm along the top for the catches
+    box(Wp - 2 * g.Rp, 2, 5, M.back, 0, Hp / 2 - 1, 12.5, backG);
+    [-1, 1].forEach(sx => box(2, band - g.Rp, 5, M.back, sx * (Wp / 2 - 1), Hp / 2 - g.Rp - (band - g.Rp) / 2, 12.5, backG));
     box(12, 3, 16, M.back, 0, -Hs / 2 + SW + 8, 11, backG);
     g.rowYs.forEach(y => box(g.ledLen, 8, 1.5, M.led, 0, y, 3.75, backG));
     g.holes.forEach(([hx, hy]) => {
@@ -1170,7 +1173,7 @@ tr:last-child td { border-bottom: 0; }
 
     // grub screw (moves with the shell in exploded view)
     const grub = new THREE.Group(); plaque.add(grub);
-    const gb = Math.max(0.5, SW - 1);
+    const gb = Math.max(0.5, SW - 0.5);
     const gm = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 10, 14), M.steel);
     gm.position.set(0, -Hs / 2 + gb + 5, 15); grub.add(gm);
 

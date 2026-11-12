@@ -57,7 +57,7 @@ FONT_FILES = {
 }
 
 # Hardware and fit constants (mm)
-CLEAR = 0.2            # gap between back panel rim and shell inner wall, per side
+CLEAR = 0.45           # gap between back panel rim and shell inner wall, per side (0.2 was too snug with TPU)
 BRIDGE_W = 1.2         # width of bridges holding letter islands
 BRIDGE_T = 1.0         # thickness of bridges (on the back face of the plate)
 INSERT_D = 4.0         # hole for M3 x 5.7 heat-set insert
@@ -65,10 +65,14 @@ INSERT_L = 5.7
 GRUB_CLEAR_D = 3.4     # clearance hole below the insert for the grub screw and hex key
 ARM_HOLE_D = 3.2       # hole in the back panel arm that the grub tip locks into
 GRUB_Z = 15.0          # distance of the grub screw axis from the wall
+BOSS_H = 6.0           # insert boss height, up from the shell's inside bottom face
+ARM_GAP = 1.5          # gap between the boss and the back panel's grub arm (0.5 caught on a test print)
+ARM_T = 3.0            # grub arm thickness
+ARM_CHAMFER = 1.5      # lead-in on the arm tip's boss side, so it rides past the boss
 # Rim groove per seal type: (width, depth, cord diameter). The shell gap is CLEAR, so a cord
 # stands (d - depth) proud and is squeezed by (d - depth - CLEAR):
-#   2 mm silicone cord:        0.6 mm squeeze (30%)
-#   1.75 mm TPU filament:      0.45 mm squeeze (26%), width leaves room for it to spread
+#   2 mm silicone cord:        0.35 mm squeeze (18%)
+#   1.75 mm TPU filament:      0.2 mm squeeze (11%), width leaves room for it to spread
 SEALS = {"cord": (2.2, 1.2, 2.0), "filament": (2.0, 1.1, 1.75)}
 SEAL_Z = 6.0           # groove centre, measured from the wall
 FILAMENT_STRETCH = 0.02   # cut the filament 2% short so it hugs the groove bottom
@@ -86,9 +90,13 @@ CABLE_D = 8.0
 PIN_D, PIN_H, PIN_TIP = 3.0, 2.0, 0.4          # alignment pins on the back of the face plate
 SOCKET_D, SOCKET_DEPTH = 3.3, 2.3              # matching sockets in the diffuser front
 SOCKET_BOSS_D, SOCKET_BOSS_H = 7.0, 1.2        # thickens the diffuser wall behind each socket
-RIM_H = 12.0           # back panel rim height (seal groove low down, catch notches above it)
+RIM_H = 12.0           # back panel rim height along the top (seal groove low down, catch notches above it)
+RIM_LOW_H = 7.0        # rim height on the sides and bottom, which have no catches (2 mm above the seal groove)
+RIM_TOP_BAND = 10.0    # the full-height top rim runs this far down each side
 LATCH_Z = 12.0         # catch position, measured from the wall
-LATCH_DEPTH = 1.6      # how far each catch stands in from the shell's top wall (1.4 mm engagement)
+LATCH_ENGAGE = 1.4     # how far each catch hooks into its notch
+LATCH_DEPTH = LATCH_ENGAGE + CLEAR   # how far each catch stands in from the shell's top wall
+LATCH_NOTCH = LATCH_ENGAGE + 0.2     # notch depth into the rim, leaving the catch tip 0.2 mm clear
 LATCH_PAD = 1.6        # thickens the back panel rim behind each notch, so the deeper notch keeps a 2 mm wall
 LATCH_LEN = 18.0
 # Removable face plate ("front": "screwed"). Each fixing is a boss on the back of the face plate
@@ -508,12 +516,12 @@ def diffuser_shell(S, g, pins=(), fixings=()):
     yb = -Hs / 2                       # outer bottom face
     shell = ext(rr(Ws, Hs, Rs), zDF + F) - ext(rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW)), zDF + 1, -1)
     # boss for the insert, running forward to the front wall so it prints without support
-    boss_top = yb + SW + 6
+    boss_top = yb + SW + BOSS_H
     shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
     shell = shell - cyl_y(0, GRUB_Z, yb - 1, boss_top + 1, GRUB_CLEAR_D)
     shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
-    # weep hole near one bottom corner
-    shell = shell - cyl_y(-Ws / 2 + 15, 4, yb - 1, yb + SW + 1, 2.0)
+    # weep hole near one bottom corner, towards the front so the back panel rim doesn't block it
+    shell = shell - cyl_y(-Ws / 2 + 15, weep_z(S, g), yb - 1, yb + SW + 1, 2.0)
     # lead-in chamfer round the rear inner edge, so the shell slides over the seal
     inner = rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW))
     shell = shell - mf.Manifold.batch_hull([
@@ -617,18 +625,27 @@ def anchor_xs():
     return (ANCHOR_X - ANCHOR_GAP / 2, ANCHOR_X + ANCHOR_GAP / 2)
 
 
+def weep_z(S, g):
+    """Height of the weep hole from the wall: just behind the diffuser front, in the open space in
+    front of the back panel's lowered bottom rim."""
+    return max(3 + RIM_LOW_H + 1.5, g["zDF"] - 1.5)
+
+
 def back_panel(S, g):
     SW, Hs = S["SW"], g["Hs"]
     Wp, Hp, Rp = g["Wp"], g["Hp"], g["Rp"]
     outer = rr(Wp, Hp, Rp)
     panel = ext(outer, 3)
     panel = panel + ext(outer - rr(Wp - 4, Hp - 4, max(0, Rp - 2)), RIM_H, 3)
+    # lower the rim on the sides and bottom; only the top needs the height for the catch notches
+    band = max(RIM_TOP_BAND, Rp + 4)
+    panel = panel - box(-Wp / 2 - 1, Wp / 2 + 1, -Hp / 2 - 1, Hp / 2 - band, 3 + RIM_LOW_H, 3 + RIM_H + 1)
     # notch in the bottom rim so it clears the shell's insert boss
     panel = panel - box(-5.5, 5.5, -Hp / 2 - 1, -Hp / 2 + 2.5, 9, 3 + RIM_H + 1)
     # notches in the top rim for the shell's catches. The upper face is 45 degrees (the face that
     # holds); the lower face follows the catch's 30 degree ramp so the catch seats fully. The tip
     # is 0.2 mm clear of the catch. A pad inside the rim keeps the wall behind each notch 2 mm thick.
-    d = LATCH_DEPTH
+    d = LATCH_NOTCH
     for xc in latch_xs(g):
         x0, x1 = xc - LATCH_LEN / 2 - 1, xc + LATCH_LEN / 2 + 1
         panel = panel + box(x0 - 2, x1 + 2, Hp / 2 - 2 - LATCH_PAD, Hp / 2 - 1.99, 2.99, 3 + RIM_H)
@@ -646,10 +663,13 @@ def back_panel(S, g):
     if seal_type(S) == "filament":
         panel = seal_anchor(panel, Hp)
     # arm for the grub screw, tied into the bottom rim
-    arm_y = -Hs / 2 + SW + 8
-    panel = panel + box(-6, 6, arm_y - 1.5, arm_y + 1.5, 2.99, GRUB_Z + 4)
-    panel = panel + box(-6, 6, -Hp / 2 + 1, arm_y + 1.5, 2.99, 9)
-    panel = panel - cyl_y(0, GRUB_Z, arm_y - 3, arm_y + 3, ARM_HOLE_D)
+    arm_y = -Hs / 2 + SW + BOSS_H + ARM_GAP + ARM_T / 2
+    a0, a1, az = arm_y - ARM_T / 2, arm_y + ARM_T / 2, GRUB_Z + 4
+    panel = panel + box(-6, 6, a0, a1, 2.99, az)
+    panel = panel + box(-6, 6, -Hp / 2 + 1, a1, 2.99, 9)
+    panel = panel - cyl_y(0, GRUB_Z, a0 - 1.5, a1 + 1.5, ARM_HOLE_D)
+    # 45 degree chamfer on the tip's boss side; it faces up as printed, so no overhang
+    panel = panel - prism([(a0 - 1, az + 1), (a0 - 1, az - ARM_CHAMFER - 1), (a0 + ARM_CHAMFER + 1, az + 1)], -7, 7)
     # wall screw holes
     d = S["holeD"]
     for x, y in g["holes"]:
