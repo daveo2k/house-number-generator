@@ -61,6 +61,10 @@ INSERT_L = 5.7
 GRUB_CLEAR_D = 3.4     # clearance hole below the insert for the grub screw and hex key
 ARM_HOLE_D = 3.2       # hole in the back panel arm that the grub tip locks into
 GRUB_Z = 15.0          # distance of the grub screw axis from the wall
+BOSS_H = 6.0           # insert boss height, up from the shell's inside bottom face
+ARM_GAP = 1.5          # gap between the boss and the back panel's grub arm (0.5 caught on a test print)
+ARM_T = 3.0            # grub arm thickness
+ARM_CHAMFER = 1.5      # lead-in on the arm tip's boss side, so it rides past the boss
 # Rim groove per seal type: (width, depth, cord diameter). The shell gap is CLEAR, so a cord
 # stands (d - depth) proud and is squeezed by (d - depth - CLEAR):
 #   2 mm silicone cord:        0.35 mm squeeze (18%)
@@ -457,7 +461,7 @@ def diffuser_shell(S, g, pins=()):
     yb = -Hs / 2                       # outer bottom face
     shell = ext(rr(Ws, Hs, Rs), zDF + F) - ext(rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW)), zDF + 1, -1)
     # boss for the insert, running forward to the front wall so it prints without support
-    boss_top = yb + SW + 6
+    boss_top = yb + SW + BOSS_H
     shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
     shell = shell - cyl_y(0, GRUB_Z, yb - 1, boss_top + 1, GRUB_CLEAR_D)
     shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
@@ -585,10 +589,13 @@ def back_panel(S, g):
     if seal_type(S) == "filament":
         panel = seal_anchor(panel, Hp)
     # arm for the grub screw, tied into the bottom rim
-    arm_y = -Hs / 2 + SW + 8
-    panel = panel + box(-6, 6, arm_y - 1.5, arm_y + 1.5, 2.99, GRUB_Z + 4)
-    panel = panel + box(-6, 6, -Hp / 2 + 1, arm_y + 1.5, 2.99, 9)
-    panel = panel - cyl_y(0, GRUB_Z, arm_y - 3, arm_y + 3, ARM_HOLE_D)
+    arm_y = -Hs / 2 + SW + BOSS_H + ARM_GAP + ARM_T / 2
+    a0, a1, az = arm_y - ARM_T / 2, arm_y + ARM_T / 2, GRUB_Z + 4
+    panel = panel + box(-6, 6, a0, a1, 2.99, az)
+    panel = panel + box(-6, 6, -Hp / 2 + 1, a1, 2.99, 9)
+    panel = panel - cyl_y(0, GRUB_Z, a0 - 1.5, a1 + 1.5, ARM_HOLE_D)
+    # 45 degree chamfer on the tip's boss side; it faces up as printed, so no overhang
+    panel = panel - prism([(a0 - 1, az + 1), (a0 - 1, az - ARM_CHAMFER - 1), (a0 + ARM_CHAMFER + 1, az + 1)], -7, 7)
     # wall screw holes
     d = S["holeD"]
     for x, y in g["holes"]:

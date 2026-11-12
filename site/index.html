@@ -829,7 +829,7 @@ tr:last-child td { border-bottom: 0; }
     s += S.seal === 'filament'
       ? '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".8" fill="#e0603a" stroke="var(--fg)" stroke-width=".15"/>'
       : '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".9" fill="var(--fg)"/>';
-    s += R(3, b0 + 6.5, 10.4, 3, back) + R(16.6, b0 + 6.5, 2.4, 3, back);
+    s += R(3, b0 + 7.5, 10.4, 3, back) + R(16.6, b0 + 7.5, 2.4, 3, back);   // grub arm, 1.5 mm above the boss
     // LED and light
     s += R(3, o + 24, 1.6, 8, 'var(--led)');
     s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + L(4.8, y(o + 28), zDF - .2, y(o + 28)) + L(4.8, y(o + 29), zDF - .2, y(o + 42)) + L(4.8, y(o + 27), zDF - .2, y(o + 15)) + '</g>';
@@ -842,8 +842,8 @@ tr:last-child td { border-bottom: 0; }
     else s += R(zDF, o, F, top - o, shell);
     // insert + grub
     s += R(12.9, b0 + 0.3, 4.2, 5.7, 'var(--brass)');
-    const gb = o + Math.max(0.5, SW - 1);
-    s += R(13.5, gb, 3, b0 + 9 - gb, 'var(--brass)');
+    const gb = o + Math.max(0.5, SW - 0.5);
+    s += R(13.5, gb, 3, b0 + 9.5 - gb, 'var(--brass)');
     s += '<g stroke="var(--fg)" stroke-width=".15" opacity=".55">' + [0, 1, 2, 3, 4, 5].map(i => L(13.5, y(gb + 1 + i * 1.5), 16.5, y(gb + 1.5 + i * 1.5))).join('') + '</g>';
     // face plate with letter cut and edge profile
     const zF = D - Tt;
@@ -874,7 +874,7 @@ tr:last-child td { border-bottom: 0; }
       [D - Tt / 2, Math.min(o + 10, fTop / 2), 'Face plate ' + fx(Tt) + ' · ' + edgeTxt],
       [zDF + F / 2, o + 36, 'Diffuser front ' + fx(F)],
       [3.8, o + 28, 'LED strip · ' + fx(g.throw_) + ' throw'],
-      [8, b0 + 8, 'Back panel arm, Ø3.2 hole'],
+      [8, b0 + 9, 'Back panel arm, Ø3.2 hole'],
       [6, b0 + 0.2, S.seal === 'filament' ? '1.75 TPU filament seal' : 'Silicone cord seal'],
       [15, b0 + 4, 'M3 heat-set insert'],
       [24, o + SW / 2, 'Diffuser side ' + fx(SW)],
@@ -1166,7 +1166,7 @@ tr:last-child td { border-bottom: 0; }
 
     // grub screw (moves with the shell in exploded view)
     const grub = new THREE.Group(); plaque.add(grub);
-    const gb = Math.max(0.5, SW - 1);
+    const gb = Math.max(0.5, SW - 0.5);
     const gm = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 10, 14), M.steel);
     gm.position.set(0, -Hs / 2 + gb + 5, 15); grub.add(gm);
 
