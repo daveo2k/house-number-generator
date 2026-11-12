@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile
     # Built from this repo, never pulled from a registry
     pull_policy: build
-    container_name: house-number-generator
+    # Different name and port from main, so both versions can run side by side
+    container_name: ${CONTAINER_NAME:-house-number-generator-removable}
     ports:
-      - "${HTTP_PORT:-8080}:8080"
+      - "${HTTP_PORT:-8081}:8080"
     restart: unless-stopped
