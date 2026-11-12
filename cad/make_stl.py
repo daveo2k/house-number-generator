@@ -32,6 +32,7 @@ import trimesh
 from fontTools.pens.basePen import BasePen
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
+from shapely.affinity import translate
 from shapely.geometry import MultiPolygon, Point, Polygon, box as sbox
 from shapely.ops import unary_union
 
@@ -88,6 +89,8 @@ LATCH_PAD = 1.6        # thickens the back panel rim behind each notch, so the d
 LATCH_LEN = 18.0
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
+HALIGNS = ("left", "centre", "right")
+DIV_STYLES = ("line", "double", "dashed", "dotted", "tapered", "diamond")
 
 
 # ---------------------------------------------------------------- fonts / text
@@ -191,43 +194,96 @@ class Face:
         return geom
 
 
+def divider_shapes(x0, x1, yc, t, style):
+    """Divider pieces between x0 and x1, centred on y = yc (Y up). Mirrors divPrims() in the page."""
+    L, xc, out = x1 - x0, (x0 + x1) / 2, []
+    bar = lambda a, b, dy=0.0: sbox(a, yc + dy - t / 2, b, yc + dy + t / 2)
+    if style == "double":
+        off = max(t, 1.2) / 2 + t / 2
+        out += [bar(x0, x1, -off), bar(x0, x1, off)]
+    elif style == "dashed":
+        gap = max(2 * t, 3)
+        n = max(1, round((L + gap) / (max(4 * t, 8) + gap)))
+        dash = (L - (n - 1) * gap) / n
+        out += [bar(x0 + i * (dash + gap), x0 + i * (dash + gap) + dash) for i in range(n)]
+    elif style == "dotted":
+        d = max(t, 1.5)
+        n = max(1, math.floor((L - d) / (2.2 * d)) + 1)
+        pitch = (L - d) / (n - 1) if n > 1 else 0
+        out += [Point(x0 + d / 2 + i * pitch if n > 1 else xc, yc).buffer(d / 2, 16) for i in range(n)]
+    elif style == "tapered":
+        N = 48
+        us = [-1 + 2 * i / N for i in range(N + 1)]
+        top = [(xc + u * L / 2, yc + t / 2 * (1 - u * u)) for u in us]
+        bot = [(xc + u * L / 2, yc - t / 2 * (1 - u * u)) for u in reversed(us[1:-1])]
+        out.append(Polygon(top + bot).buffer(0))
+    elif style == "diamond":
+        r, gap = max(2 * t, 4), max(t, 1.5)
+        out.append(Polygon([(xc - r, yc), (xc, yc + r), (xc + r, yc), (xc, yc - r)]))
+        if xc - r - gap - x0 > 1:
+            out += [bar(x0, xc - r - gap), bar(xc + r + gap, x1)]
+    else:
+        out.append(bar(x0, x1))
+    return out
+
+
 def lettering(S):
     """Return the lettering as shapely geometry in plate coordinates (mm, origin at centre, Y up).
     Mirrors the layout used by the web designer."""
     W, H = S["W"], S["H"]
     f1, f2 = Face(S["f1"], S["w1"]), Face(S["f2"], S["w2"])
-    shapes = []
+    margin = S.get("marginX", 25)
+
+    def place(glyphs, align):
+        """Shift a line laid out from x = 0 by its ink (the letter shapes, not the font's spacing):
+        centred on the plate, or with its edge on the side margin for left / right."""
+        if not glyphs:
+            return []
+        minx, _, maxx, _ = unary_union(glyphs).bounds
+        if align == "left":
+            dx = -W / 2 + margin - minx
+        elif align == "right":
+            dx = W / 2 - margin - maxx
+        else:
+            dx = -(minx + maxx) / 2
+        return [translate(g, dx, 0) for g in glyphs]
 
     chars = list(S["line1"].upper())
+    t2 = list(S["line2"].upper())
+    has1, has2 = any(c.strip() for c in chars), any(c.strip() for c in t2)
     sizes = S.get("sizes") or [60]
     caps = [(sizes[i] if i < len(sizes) and sizes[i] else (sizes[0] or 60)) for i in range(len(chars))]
-    h1 = max([c for c, ch in zip(caps, chars) if ch != " "] or [0])
-    widths = [f1.advance(ch, caps[i] / f1.cap) for i, ch in enumerate(chars)]
-    tot1 = sum(widths) + S["track1"] * max(0, len(chars) - 1)
-    top = (H - (h1 + S["gap"] + S["cap2"])) / 2 + S.get("offY", 0)
-    x = (W - tot1) / 2
-    for i, ch in enumerate(chars):
-        align = S.get("align", "baseline")
-        base = top + caps[i] if align == "top" else top + (h1 + caps[i]) / 2 if align == "centre" else top + h1
-        g = f1.glyph(ch, caps[i] / f1.cap, x - W / 2, H / 2 - base)
-        if g is not None and not g.is_empty:
-            shapes.append(g)
-        x += widths[i] + S["track1"]
+    h1 = max([c for c, ch in zip(caps, chars) if ch.strip()] or [0])
+    # a missing line takes no room, so one line on its own is centred top to bottom
+    gap = S["gap"] if has1 and has2 else 0
+    cap2 = S["cap2"] if has2 else 0
+    top = (H - (h1 + gap + cap2)) / 2 + S.get("offY", 0)
 
-    if S.get("divider"):
-        L, yd, t = W * S["divL"] / 100, top + h1 + S["gap"] / 2, S["divT"]
-        shapes.append(sbox(-L / 2, H / 2 - yd - t / 2, L / 2, H / 2 - yd + t / 2))
+    align = S.get("align", "baseline")
+    x, line1 = 0.0, []
+    for i, ch in enumerate(chars):
+        base = top + caps[i] if align == "top" else top + (h1 + caps[i]) / 2 if align == "centre" else top + h1
+        g = f1.glyph(ch, caps[i] / f1.cap, x, H / 2 - base)
+        if g is not None and not g.is_empty:
+            line1.append(g)
+        x += f1.advance(ch, caps[i] / f1.cap) + S["track1"]
+    shapes = place(line1, S.get("halign1", "centre"))
+
+    if S.get("divider") and has1 and has2:
+        L, yd, t = W * S["divL"] / 100, top + h1 + gap / 2, S["divT"]
+        a = S.get("halignDiv", "centre")
+        x0 = -W / 2 + margin if a == "left" else W / 2 - margin - L if a == "right" else -L / 2
+        shapes += divider_shapes(x0, x0 + L, H / 2 - yd, t, S.get("divStyle", "line"))
 
     size2 = S["cap2"] / f2.cap
-    t2 = list(S["line2"].upper())
-    w2 = sum(f2.advance(c, size2) for c in t2) + S["track2"] * max(0, len(t2) - 1)
-    base2 = top + h1 + S["gap"] + S["cap2"]
-    x = (W - w2) / 2
+    base2 = top + h1 + gap + cap2
+    x, line2 = 0.0, []
     for ch in t2:
-        g = f2.glyph(ch, size2, x - W / 2, H / 2 - base2)
+        g = f2.glyph(ch, size2, x, H / 2 - base2)
         if g is not None and not g.is_empty:
-            shapes.append(g)
+            line2.append(g)
         x += f2.advance(ch, size2) + S["track2"]
+    shapes += place(line2, S.get("halign2", "centre"))
 
     return unary_union(shapes)
 

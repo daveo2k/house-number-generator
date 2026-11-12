@@ -64,6 +64,14 @@ def clean(raw):
     sizes = raw.get("sizes") or [60]
     S["sizes"] = [min(400.0, max(5.0, float(v))) for v in list(sizes)[:8]]
     S["divider"] = bool(raw.get("divider"))
+    # layout options added later, so older saved settings without them still work
+    for k in ("halign1", "halign2", "halignDiv"):
+        S[k] = raw.get(k) if raw.get(k) in make_stl.HALIGNS else "centre"
+    S["divStyle"] = raw.get("divStyle") if raw.get("divStyle") in make_stl.DIV_STYLES else "line"
+    try:
+        S["marginX"] = min(150.0, max(5.0, float(raw.get("marginX", 25))))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid setting: marginX")
     S["front"] = "together" if raw.get("front") == "together" else "separate"
     try:
         S["recess"] = min(S["T"], max(0.0, float(raw.get("recess", 0))))

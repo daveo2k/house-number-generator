@@ -12,7 +12,9 @@ The plaque is a sealed light box with three printed parts:
 
 - Two lines of text, each with its own font and weight. There are 10 fonts.
 - A separate height for each character on the top line, aligned by bottom, centre or top.
-- Second line height and spacing, the gap between lines, and a divider line.
+- Second line height and spacing, and the gap between lines. Leave the second line empty for a number on its own, centred both ways on the plate.
+- Left, centre or right alignment for each line and the divider, with a side margin for left and right.
+- A divider between the lines: plain, double, dashed, dotted, tapered, or a line with a centre diamond.
 - Overall width, height and depth.
 - Face plate thickness, corner radius, and front edge (square, chamfer or rounded) with its size.
 - Diffuser front and side thickness, and how far the face plate overhangs the diffuser.
