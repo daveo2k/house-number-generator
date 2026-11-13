@@ -4,7 +4,10 @@
 Reads the JSON from the designer's "Copy settings" button and writes three STLs:
 
   face_plate.stl     - lettering cut through, front edge profile, island bridges
-  diffuser_shell.stl - white light box: front + sides, grub screw boss and insert hole
+  diffuser_shell.stl - white light box: front + sides, grub screw boss and insert hole. With
+                       "edgeLight" it has two walls: an inner one round the sealed chamber that
+                       backlights the letters, and an outer one that glows from a face-out LED
+                       strip on the inner wall, in a channel left open to the house wall
   back_panel.stl     - wall plate with rim, seal groove, screw holes, cable hole, grub arm
 
 With "front": "together" the face plate and diffuser print as one two-colour part instead:
@@ -95,6 +98,15 @@ LATCH_DEPTH = LATCH_ENGAGE + CLEAR   # how far each catch stands in from the she
 LATCH_NOTCH = LATCH_ENGAGE + 0.2     # notch depth into the rim, leaving the catch tip 0.2 mm clear
 LATCH_PAD = 1.6        # thickens the back panel rim behind each notch, so the deeper notch keeps a 2 mm wall
 LATCH_LEN = 18.0
+# Edge light: a second, outer wall with a channel between it and the sealed chamber. A face-out
+# COB strip on the inner wall lights the outer wall along its full depth, since nothing covers it.
+EDGE_W_DEF = 20.0      # channel width, inner wall to outer wall
+EDGE_R_MIN = 5.0       # inner wall corner radius, so the strip isn't bent sharply
+EDGE_MIN_CHAMBER = 90.0  # smallest chamber height left for the letters and back panel
+EDGE_STRIP_W = 10.0    # strip width, for the drawings and parts note
+EDGE_LEAD_D = 4.5      # hole through the inner wall for the strip's lead
+EDGE_LEAD_X = 9.0      # beside the grub rib, where the strip's two ends meet
+EDGE_RIB_W = 8.0       # rib across the channel that guides the grub screw
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
 HALIGNS = ("left", "centre", "right")
@@ -379,8 +391,15 @@ def derive(S):
     Rs = max(0.0, R - o)
     e = 0.0 if S.get("edge", "chamfer") == "square" else max(0.0, min(S.get("edgeSize", 0), S["T"] - 0.6))
     SW = S["SW"]
-    Wp, Hp = Ws - 2 * SW - 2 * CLEAR, Hs - 2 * SW - 2 * CLEAR
-    Rp = max(0.0, Rs - SW - CLEAR)
+    ch = edge_channel(S, Ws, Hs)
+    # the sealed chamber: the whole shell, or the inner wall when there's an edge light channel
+    if ch:
+        Wc, Hc = Ws - 2 * (SW + ch), Hs - 2 * (SW + ch)
+        Rc = max(EDGE_R_MIN, Rs - SW - ch)
+    else:
+        Wc, Hc, Rc = Ws, Hs, Rs
+    Wp, Hp = Wc - 2 * SW - 2 * CLEAR, Hc - 2 * SW - 2 * CLEAR
+    Rp = max(0.0, Rc - SW - CLEAR)
     zDF = S["D"] - S["T"] - S["F"]
     rows = max(2, round((Hp - 40) / 45))
     span = Hp / 2 - 30
@@ -395,7 +414,29 @@ def derive(S):
         holes = [(-hx, 0), (hx, 0)]
     cable = (0.0, (row_ys[0] + row_ys[1]) / 2)
     return dict(o=o, Ws=Ws, Hs=Hs, R=R, Rs=Rs, e=e, Wp=Wp, Hp=Hp, Rp=Rp, zDF=zDF,
-                row_ys=row_ys, holes=holes, cable=cable)
+                row_ys=row_ys, holes=holes, cable=cable, ch=ch, Wc=Wc, Hc=Hc, Rc=Rc)
+
+
+def edge_channel(S, Ws, Hs):
+    """Edge light channel width, 0 when off. Narrowed so the chamber keeps EDGE_MIN_CHAMBER."""
+    if not S.get("edgeLight"):
+        return 0.0
+    w = min(float(S.get("edgeW", EDGE_W_DEF)), (min(Ws, Hs) - EDGE_MIN_CHAMBER) / 2 - S["SW"])
+    return w if w >= 8 else 0.0
+
+
+def edge_strip(S, g):
+    """Edge strip length round the inner wall (less the gap at the grub rib), and its centre depth."""
+    if not g["ch"]:
+        return 0.0, 0.0
+    Wc, Hc, Rc = g["Wc"], g["Hc"], g["Rc"]
+    length = 2 * (Wc + Hc) - (8 - 2 * math.pi) * Rc - 2 * EDGE_LEAD_X
+    return length, g["zDF"] / 2
+
+
+def edge_lead_z(g):
+    """Height of the strip lead hole: above the back panel's bottom rim, below the front."""
+    return min(3 + RIM_LOW_H + 3.5, g["zDF"] - 3)
 
 
 def pin_positions(S, g, letters):
@@ -458,23 +499,36 @@ def face_plate(S, g, letters, pins=(), with_bridges=True):
 def diffuser_shell(S, g, pins=()):
     SW, F, zDF = S["SW"], S["F"], g["zDF"]
     Ws, Hs, Rs = g["Ws"], g["Hs"], g["Rs"]
-    yb = -Hs / 2                       # outer bottom face
+    Wc, Hc, Rc, ch = g["Wc"], g["Hc"], g["Rc"], g["ch"]
+    yo = -Hs / 2                       # outer bottom face
+    yb = -Hc / 2                       # chamber's outer bottom face (the same without an edge light)
     shell = ext(rr(Ws, Hs, Rs), zDF + F) - ext(rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW)), zDF + 1, -1)
+    if ch:
+        # inner wall round the sealed chamber, running back to the wall like the outer one
+        shell = shell + ext(rr(Wc, Hc, Rc) - rr(Wc - 2 * SW, Hc - 2 * SW, max(0, Rc - SW)), zDF + 0.01)
+        # rib across the channel at the bottom centre: guides the grub screw and hex key in, and
+        # ties the two walls together. It runs forward to the front, so it prints without support.
+        shell = shell + box(-EDGE_RIB_W / 2, EDGE_RIB_W / 2, yo + SW - 0.01, yb + 0.01, GRUB_Z - 4, zDF + 0.01)
+        # hole beside the rib for the strip's lead, into the chamber
+        shell = shell - cyl_y(EDGE_LEAD_X, edge_lead_z(g), yb - 1, yb + SW + 1, EDGE_LEAD_D)
+        # weep holes in the outer wall: one under the chamber's weep hole, one at the other end
+        for x in (-Wc / 2 + 15, Wc / 2 - 15):
+            shell = shell - cyl_y(x, weep_z(S, g), yo - 1, yo + SW + 1, 2.0)
     # boss for the insert, running forward to the front wall so it prints without support
     boss_top = yb + SW + BOSS_H
     shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
-    shell = shell - cyl_y(0, GRUB_Z, yb - 1, boss_top + 1, GRUB_CLEAR_D)
+    shell = shell - cyl_y(0, GRUB_Z, yo - 1, boss_top + 1, GRUB_CLEAR_D)
     shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
     # weep hole near one bottom corner, towards the front so the back panel rim doesn't block it
-    shell = shell - cyl_y(-Ws / 2 + 15, weep_z(S, g), yb - 1, yb + SW + 1, 2.0)
+    shell = shell - cyl_y(-Wc / 2 + 15, weep_z(S, g), yb - 1, yb + SW + 1, 2.0)
     # lead-in chamfer round the rear inner edge, so the shell slides over the seal
-    inner = rr(Ws - 2 * SW, Hs - 2 * SW, max(0, Rs - SW))
+    inner = rr(Wc - 2 * SW, Hc - 2 * SW, max(0, Rc - SW))
     shell = shell - mf.Manifold.batch_hull([
         ext(inner.offset(LEAD_IN, mf.JoinType.Round, 2.0, SEG), 0.01, -0.01),
         ext(inner, 0.01, LEAD_IN)])
     # snap catches on the inside of the top wall. The front face is 45 degrees (prints without
     # support and holds firmly but releases with a firm pull); the rear face is a gentle ramp.
-    y_in = Hs / 2 - SW
+    y_in = Hc / 2 - SW
     d = LATCH_DEPTH
     ramp = d / math.tan(math.radians(30))
     for xc in latch_xs(g):
@@ -558,7 +612,7 @@ def weep_z(S, g):
 
 
 def back_panel(S, g):
-    SW, Hs = S["SW"], g["Hs"]
+    SW, Hs = S["SW"], g["Hc"]
     Wp, Hp, Rp = g["Wp"], g["Hp"], g["Rp"]
     outer = rr(Wp, Hp, Rp)
     panel = ext(outer, 3)

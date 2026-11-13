@@ -79,7 +79,28 @@ def clean(raw):
         raise ValueError("Missing or invalid setting: recess")
     S["pins"] = bool(raw.get("pins", True)) and S["front"] == "separate"
     S["seal"] = make_stl.seal_type(raw)
+    S["edgeLight"] = bool(raw.get("edgeLight", False))
+    try:
+        S["edgeW"] = min(40.0, max(10.0, float(raw.get("edgeW", make_stl.EDGE_W_DEF))))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid setting: edgeW")
     return S
+
+
+def edge_notes(S):
+    g = make_stl.derive(S)
+    if not g["ch"]:
+        return []
+    length, zc = make_stl.edge_strip(S, g)
+    return [
+        f"Edge light: {g['ch']:g} mm channel between the inner and outer walls, open to the house wall.",
+        f"  Stick {length / 1000:.2f} m of IP65 12 V COB strip (up to {make_stl.EDGE_STRIP_W:g} mm wide) round the OUTSIDE",
+        f"  of the inner wall, LEDs facing out, centred about {zc:.0f} mm from the wall. Start and finish",
+        "  either side of the grub rib at the bottom centre, and don't put a cut point on a corner.",
+        f"  Its lead goes into the chamber through the {make_stl.EDGE_LEAD_D:g} mm hole beside the rib: seal it with",
+        "  silicone afterwards. Wire it in parallel with the letter strips.",
+        "  The grub screw is reached through the rib, so use the long arm of the 1.5 mm hex key.",
+    ]
 
 
 def front_notes(S):
@@ -180,6 +201,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "back_panel.stl      any PETG/ASA, flat side down",
                 "Three snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
                 seal_note(S),
+                *edge_notes(S),
                 "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
             ]))
         name = slug(S) + "-stl.zip"
