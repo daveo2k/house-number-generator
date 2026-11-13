@@ -610,6 +610,7 @@ tr:last-child td { border-bottom: 0; }
       ctx.font = f1(i);
       ctx.fillText(c, (dx1 + L1.xs[i]) * k, base * k);
     });
+    let inkDiv = null;
     if (S.divider && has1 && has2) {
       const L = S.W * S.divL / 100, y = top + h1 + gap / 2;
       const x0 = S.halignDiv === 'left' ? S.marginX : S.halignDiv === 'right' ? S.W - S.marginX - L : (S.W - L) / 2;
@@ -619,6 +620,9 @@ tr:last-child td { border-bottom: 0; }
         else if (p.c) ctx.arc(p.c[0] * k, (y + p.c[1]) * k, p.c[2] * k, 0, 2 * Math.PI);
         else p.p.forEach(([px, py], j) => ctx[j ? 'lineTo' : 'moveTo'](px * k, (y + py) * k));
         ctx.fill();
+        // ends of the divider as drawn (dots and diamonds can reach past x0..x1)
+        const xs = p.r ? [p.r[0], p.r[1]] : p.c ? [p.c[0] - p.c[2], p.c[0] + p.c[2]] : p.p.map(q => q[0]);
+        inkDiv = [Math.min(inkDiv ? inkDiv[0] : Infinity, ...xs), Math.max(inkDiv ? inkDiv[1] : -Infinity, ...xs)];
       });
     }
     const font2 = font(S.w2, S.cap2 / r2 * k, S.f2);
@@ -630,7 +634,7 @@ tr:last-child td { border-bottom: 0; }
     ctx.restore();
     return {
       top, h1, base1: top + h1, w1: L1.adv, top2: top + h1 + gap, base2, w2: L2.adv, has1, has2,
-      ink1: [dx1 + L1.l, dx1 + L1.r], ink2: [dx2 + L2.l, dx2 + L2.r],
+      ink1: [dx1 + L1.l, dx1 + L1.r], ink2: [dx2 + L2.l, dx2 + L2.r], inkDiv,
       bottom: has2 ? base2 : top + h1, lowH: has2 ? S.cap2 : h1
     };
   }
@@ -1015,6 +1019,10 @@ tr:last-child td { border-bottom: 0; }
     const litX = (S.W - usable) / 2;
     if ((m.has1 && (m.ink1[0] < litX - 0.05 || m.ink1[1] > S.W - litX + 0.05)) || (m.has2 && (m.ink2[0] < litX - 0.05 || m.ink2[1] > S.W - litX + 0.05)))
       w.push('Some lettering is closer than ' + fx(litX) + ' mm to the side of the plate, where it won\'t light evenly' + (g.ch ? ', because it is over the inner wall or the edge light channel' : '') + '. Set the side margin to ' + fx(Math.ceil(litX)) + ' mm or more' + (g.ch ? ', or narrow the channel' : '') + '.');
+    if (m.inkDiv && (m.inkDiv[0] < litX - 0.05 || m.inkDiv[1] > S.W - litX + 0.05)) {
+      const maxL = Math.floor((usable - (m.inkDiv[1] - m.inkDiv[0] - S.W * S.divL / 100)) / S.W * 100);
+      w.push('The divider is ' + fx(m.inkDiv[1] - m.inkDiv[0]) + ' mm long and reaches within ' + fx(Math.min(m.inkDiv[0], S.W - m.inkDiv[1])) + ' mm of the side of the plate, past the ' + fx(usable) + ' mm that will light' + (g.ch ? ', so it runs over the inner wall or the edge light channel' : '') + '. Set its length to ' + Math.max(10, maxL) + '% or less' + (S.halignDiv !== 'centre' ? ', or increase the side margin' : '') + '.');
+    }
     if (m.top < lit || m.bottom > S.H - lit) w.push(g.ch ? 'Some lettering sits over the inner wall or the edge light channel, so it won\'t light evenly. Reduce the text sizes, the gap or the channel width.' : 'Some lettering sits over the diffuser\'s side walls or past them, so it won\'t light evenly. Reduce the overhang, the text sizes or the gap.');
     else if (m.top < 12 || m.bottom > S.H - 12) w.push('The lettering comes within 12 mm of the top or bottom edge. Reduce the gap or heights, or adjust "Move up / down".');
     if (S.overhang > g.o + 0.01) w.push('The overhang is limited to ' + fx(g.o) + ' mm at this plate size.');
