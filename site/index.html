@@ -376,6 +376,7 @@ tr:last-child td { border-bottom: 0; }
           </div>
           <div class="row" id="edgeW-row">
             <div class="field"><label class="label" for="edgeW">Channel width</label><div class="unit" data-u="mm"><input type="number" id="edgeW" min="10" max="40" step="1"></div></div>
+            <div class="field"><label class="label" for="edgeGap">Outer wall gap to the wall</label><div class="unit" data-u="mm"><input type="number" id="edgeGap" min="0" max="5" step="0.5"></div></div>
           </div>
           <p class="hintline" id="edge-hint"></p>
         </div>
@@ -511,7 +512,7 @@ tr:last-child td { border-bottom: 0; }
     W: 250, H: 180, D: 30, T: 3, edge: 'chamfer', edgeSize: 2, radius: 6, overhang: 0, F: 1.6, SW: 2,
     holes: 4, holeType: 'countersunk', holeD: 4, holeInset: 20,
     plate: '#141416', front: 'separate', recess: 1.5, pins: true, seal: 'cord',
-    edgeLight: true, edgeW: 20
+    edgeLight: true, edgeW: 20, edgeGap: 2
   };
   const VIEW = { night: true, exploded: false };
   const KEY = 'plaque-designer-v3';
@@ -542,6 +543,7 @@ tr:last-child td { border-bottom: 0; }
     if (ch < 8) ch = 0;
     const Wc = ch ? Ws - 2 * (S.SW + ch) : Ws, Hc = ch ? Hs - 2 * (S.SW + ch) : Hs;
     const Rc = ch ? Math.max(5, Rs - S.SW - ch) : Rs;
+    const gap = ch ? Math.max(0, Math.min(S.edgeGap, 5)) : 0;   // outer wall stops short of the house wall
     const ci = o + (ch ? S.SW + ch : 0);          // chamber's outer face, in from the plate edge
     const edgeLen = ch ? 2 * (Wc + Hc) - (8 - 2 * Math.PI) * Rc - 20 : 0;   // less the gap at the grub rib
     const Wp = Wc - 2 * S.SW - 0.9, Hp = Hc - 2 * S.SW - 0.9, Rp = Math.max(0, Rc - S.SW - 0.45);   // CLEAR = 0.45 in cad/make_stl.py
@@ -555,7 +557,7 @@ tr:last-child td { border-bottom: 0; }
       : S.holeType === 'keyhole' ? [[-hx, hy], [hx, hy]] : [[-hx, 0], [hx, 0]];
     const cable = [0, (rowYs[0] + rowYs[1]) / 2];
     const ledLen = Wp - 30;
-    return { o, Ws, Hs, R, Rs, e, Wp, Hp, Rp, zDF, throw_, rowYs, holes, cable, ledLen, ch, Wc, Hc, Rc, ci, edgeLen };
+    return { o, Ws, Hs, R, Rs, e, Wp, Hp, Rp, zDF, throw_, rowYs, holes, cable, ledLen, ch, Wc, Hc, Rc, ci, edgeLen, gap };
   }
 
   // ---------- lettering ----------
@@ -693,7 +695,7 @@ tr:last-child td { border-bottom: 0; }
     S.sizes = S.sizes.map(() => v); renderChars(); changed(false);
   });
 
-  const NUMS = { track1: 0, cap2: 0, track2: 0, gap: 0, offY: 0, divT: 0, divL: 0, W: 1, H: 1, D: 1, T: 1, edgeSize: 1, radius: 1, overhang: 1, F: 1, SW: 1, holeD: 1, holeInset: 1, recess: 0, marginX: 0, edgeW: 1 };
+  const NUMS = { track1: 0, cap2: 0, track2: 0, gap: 0, offY: 0, divT: 0, divL: 0, W: 1, H: 1, D: 1, T: 1, edgeSize: 1, radius: 1, overhang: 1, F: 1, SW: 1, holeD: 1, holeInset: 1, recess: 0, marginX: 0, edgeW: 1, edgeGap: 1 };
   Object.keys(NUMS).forEach(k => {
     const el = $(k);
     el.addEventListener('input', () => { const v = parseFloat(el.value); if (!isNaN(v)) { S[k] = v; changed(!!NUMS[k], true); } });
@@ -751,7 +753,7 @@ tr:last-child td { border-bottom: 0; }
     $('fit-grub').textContent = 'Tighten the grub screw from below with a 1.5 mm hex key' + (S.edgeLight ? ', reaching in through the rib with the key\'s long arm.' : '.');
     const eg = geo();
     $('edge-hint').textContent = S.edgeLight
-      ? (eg.ch ? 'The shell gets a second, inner wall ' + fx(eg.ch) + ' mm in from the outer one. The letter LEDs and the seal stay inside the inner wall. A face-out IP65 COB strip goes round the outside of the inner wall and lights the outer wall along its full depth, because nothing covers it. The channel is open at the back to the house wall, and has its own weep holes. Inner corners are at least R5, so the strip isn\'t bent sharply. For an even glow at the corners too, use a corner radius of about ' + fx(Math.ceil(eg.ch + S.SW + 5 + eg.o)) + ' mm or more. Keep the lettering inside the inner wall.'
+      ? (eg.ch ? 'The shell gets a second, inner wall ' + fx(eg.ch) + ' mm in from the outer one. The letter LEDs and the seal stay inside the inner wall. A face-out IP65 COB strip goes round the outside of the inner wall and lights the outer wall along its full depth, because nothing covers it. The channel is open at the back to the house wall, and has its own weep holes.' + (eg.gap > 0.01 ? ' The outer wall stops ' + fx(eg.gap) + ' mm short of the wall, so it rides over uneven render and lets a thin line of light onto the wall.' : '') + ' Inner corners are at least R5, so the strip isn\'t bent sharply. For an even glow at the corners too, use a corner radius of about ' + fx(Math.ceil(eg.ch + S.SW + 5 + eg.o)) + ' mm or more. Keep the lettering inside the inner wall.'
         + (eg.ch < S.edgeW - 0.01 ? ' The channel is limited to ' + fx(eg.ch) + ' mm at this size.' : '')
         : 'This plaque is too small for an edge light channel. The chamber needs to stay at least 90 mm tall.')
       : 'One wall all round. The back panel\'s rim sits inside it, so the rear 10 mm of the sides stays darker.';
@@ -872,7 +874,7 @@ tr:last-child td { border-bottom: 0; }
     const zs = zDF / 2 - 5;            // edge strip, centred on the channel's depth
     if (ch) {
       // outer wall, the grub rib across the channel (in the plane of this section), and the edge strip beyond it
-      s += R(0, o, 13.3, SW, shell) + R(16.7, o, zDF + F - 16.7, SW, shell);
+      s += R(g.gap, o, 13.3 - g.gap, SW, shell) + R(16.7, o, zDF + F - 16.7, SW, shell);
       s += R(11, o + SW, 2.3, ch, shell) + R(16.7, o + SW, zDF - 16.7, ch, shell);
       s += '<rect x="' + zs + '" y="' + y(ob) + '" width="10" height="2.5" fill="var(--led)" fill-opacity=".7" stroke="var(--led)" stroke-width=".25" stroke-dasharray=".8 .5"/>';
       s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + [0, 1, 2].map(i => L(zs + 5, y(ob - 2.6), zs + 5 + (i - 1) * 9, y(o + SW + .2))).join('') + '</g>';
@@ -920,7 +922,7 @@ tr:last-child td { border-bottom: 0; }
       [6, b0 + 0.2, S.seal === 'filament' ? '1.75 TPU filament seal' : 'Silicone cord seal'],
       [15, b0 + 4, 'M3 heat-set insert'],
       [24, ob + SW / 2, ch ? 'Inner wall ' + fx(SW) : 'Diffuser side ' + fx(SW)],
-      ch ? [8, o + SW / 2, 'Outer wall ' + fx(SW) + ', lit full depth'] : null,
+      ch ? [8, o + SW / 2, 'Outer wall ' + fx(SW) + (g.gap > 0.01 ? ', ' + fx(g.gap) + ' gap to wall' : ', lit full depth')] : null,
       ch ? [zs + 7, ob - 1.25, 'Edge strip, IP65 COB, facing out'] : null,
       ch ? [20, o + SW + ch / 2, 'Grub rib · ' + fx(ch) + ' channel'] : null,
       [15, gb + 0.5, 'M3 × 10 grub, recessed'],
@@ -1003,7 +1005,7 @@ tr:last-child td { border-bottom: 0; }
         ? [['#9aa0a6', num('Recess plugs'), 'PLA or Support for PETG', fx(Math.min(S.recess, S.T)) + ' deep', 'Fills the letter recesses while printing. Assign it to the white nozzle: it only prints below the white, so there is one filament swap. Pop the plugs out afterwards with a pick.']]
         : [])
       : [['var(--p-face)', num('Face plate'), 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.'],
-        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. ' + (g.ch ? 'Inner wall ' + fx(g.Wc) + ' × ' + fx(g.Hc) + ' round the sealed chamber, with a ' + fx(g.ch) + ' mm channel to the outer wall for the edge strip, a rib at the bottom centre that guides the grub screw, a Ø6 hole for the strip lead and two weep holes. ' : '') + 'Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
+        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. ' + (g.ch ? 'Inner wall ' + fx(g.Wc) + ' × ' + fx(g.Hc) + ' round the sealed chamber, with a ' + fx(g.ch) + ' mm channel to the outer wall for the edge strip, a rib at the bottom centre that guides the grub screw, a Ø6 hole for the strip lead and two weep holes. ' + (g.gap > 0.01 ? 'The outer wall stops ' + fx(g.gap) + ' mm short of the wall. ' : '') + '' : '') + 'Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
     $('parts').innerHTML = [
       ...frontRows,
       ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate with a rim and seal groove all round. The rim is 12 mm along the top for the three catch notches and 7 mm on the sides and bottom. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
@@ -1198,7 +1200,7 @@ tr:last-child td { border-bottom: 0; }
     const shell = new THREE.Group(); plaque.add(shell);
     const zDF = g.zDF;
     mesh(ext(rrShape(g.Ws, g.Hs, g.Rs), F), [M.diffFront, M.diff], zDF, shell);
-    mesh(ext(ring(g.Ws, g.Hs, g.Rs, SW), zDF), M.diff, 0, shell);
+    mesh(ext(ring(g.Ws, g.Hs, g.Rs, SW), zDF - g.gap), M.diff, g.gap, shell);
     if (g.ch) {
       mesh(ext(ring(g.Wc, g.Hc, g.Rc, SW), zDF), M.diff, 0, shell);
       mesh(ext(ring(g.Wc + 5, g.Hc + 5, g.Rc + 2.5, 2.5), 10), M.led, zDF / 2 - 5, shell);   // edge strip, face out

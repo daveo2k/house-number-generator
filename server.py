@@ -84,6 +84,10 @@ def clean(raw):
         S["edgeW"] = min(40.0, max(10.0, float(raw.get("edgeW", make_stl.EDGE_W_DEF))))
     except (TypeError, ValueError):
         raise ValueError("Invalid setting: edgeW")
+    try:
+        S["edgeGap"] = min(5.0, max(0.0, float(raw.get("edgeGap", make_stl.EDGE_GAP_DEF))))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid setting: edgeGap")
     return S
 
 
@@ -94,6 +98,8 @@ def edge_notes(S):
     length, zc = make_stl.edge_strip(S, g)
     return [
         f"Edge light: {g['ch']:g} mm channel between the inner and outer walls, open to the house wall.",
+        *([f"  The outer wall stops {g['gap']:g} mm short of the wall, so it clears uneven render and light bleeds onto the wall."]
+          if g["gap"] > 0.01 else []),
         f"  Stick {length / 1000:.2f} m of IP65 12 V COB strip (up to {make_stl.EDGE_STRIP_W:g} mm wide) round the OUTSIDE",
         f"  of the inner wall, LEDs facing out, centred about {zc:.0f} mm from the wall. Start and finish",
         "  either side of the grub rib at the bottom centre, and don't put a cut point on a corner.",

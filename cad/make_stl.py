@@ -101,6 +101,7 @@ LATCH_LEN = 18.0
 # Edge light: a second, outer wall with a channel between it and the sealed chamber. A face-out
 # COB strip on the inner wall lights the outer wall along its full depth, since nothing covers it.
 EDGE_W_DEF = 20.0      # channel width, inner wall to outer wall
+EDGE_GAP_DEF = 2.0     # outer wall stops this short of the house wall: rides over uneven walls, lets light bleed
 EDGE_R_MIN = 5.0       # inner wall corner radius, so the strip isn't bent sharply
 EDGE_MIN_CHAMBER = 90.0  # smallest chamber height left for the letters and back panel
 EDGE_STRIP_W = 10.0    # strip width, for the drawings and parts note
@@ -413,8 +414,9 @@ def derive(S):
     else:
         holes = [(-hx, 0), (hx, 0)]
     cable = (0.0, (row_ys[0] + row_ys[1]) / 2)
+    gap = max(0.0, min(float(S.get("edgeGap", EDGE_GAP_DEF)), 5.0)) if ch else 0.0
     return dict(o=o, Ws=Ws, Hs=Hs, R=R, Rs=Rs, e=e, Wp=Wp, Hp=Hp, Rp=Rp, zDF=zDF,
-                row_ys=row_ys, holes=holes, cable=cable, ch=ch, Wc=Wc, Hc=Hc, Rc=Rc)
+                row_ys=row_ys, holes=holes, cable=cable, ch=ch, Wc=Wc, Hc=Hc, Rc=Rc, gap=gap)
 
 
 def edge_channel(S, Ws, Hs):
@@ -514,6 +516,11 @@ def diffuser_shell(S, g, pins=()):
         # weep holes in the outer wall: one under the chamber's weep hole, one at the other end
         for x in (-Wc / 2 + 15, Wc / 2 - 15):
             shell = shell - cyl_y(x, weep_z(S, g), yo - 1, yo + SW + 1, 2.0)
+        # stop the outer wall short of the house wall (the inner wall still runs back to it)
+        if g["gap"] > 0.01:
+            # (the cut reaches 0.3 mm into the empty channel so the corners leave no slivers)
+            shell = shell - ext(rr(Ws + 2, Hs + 2, Rs + 1) - rr(Ws - 2 * SW - 0.6, Hs - 2 * SW - 0.6, max(0, Rs - SW - 0.3)),
+                                g["gap"] + 1, -1)
     # boss for the insert, running forward to the front wall so it prints without support
     boss_top = yb + SW + BOSS_H
     shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
