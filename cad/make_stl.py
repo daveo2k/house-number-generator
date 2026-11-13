@@ -104,8 +104,8 @@ EDGE_W_DEF = 20.0      # channel width, inner wall to outer wall
 EDGE_R_MIN = 5.0       # inner wall corner radius, so the strip isn't bent sharply
 EDGE_MIN_CHAMBER = 90.0  # smallest chamber height left for the letters and back panel
 EDGE_STRIP_W = 10.0    # strip width, for the drawings and parts note
-EDGE_LEAD_D = 4.5      # hole through the inner wall for the strip's lead
-EDGE_LEAD_X = 9.0      # beside the grub rib, where the strip's two ends meet
+EDGE_LEAD_D = 6.0      # hole through the inner wall for the strip's lead
+EDGE_LEAD_X = 10.0     # beside the grub rib, where the strip's two ends meet (1 mm clear of the grub arm)
 EDGE_RIB_W = 8.0       # rib across the channel that guides the grub screw
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
@@ -436,7 +436,7 @@ def edge_strip(S, g):
 
 def edge_lead_z(g):
     """Height of the strip lead hole: above the back panel's bottom rim, below the front."""
-    return min(3 + RIM_LOW_H + 3.5, g["zDF"] - 3)
+    return min(3 + RIM_LOW_H + 4, g["zDF"] - 3.5)
 
 
 def pin_positions(S, g, letters):
