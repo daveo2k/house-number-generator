@@ -116,10 +116,13 @@ EDGE_MIN_W = 10.0      # narrowest channel: room for the insert, tongue and clea
 # runs out under the inner wall, behind the seal) slides into a slot in the rib above it.
 TONGUE_GAP = 0.5       # insert top to tongue
 TONGUE_T = 4.0         # tongue thickness (along the grub screw)
-TONGUE_W = EDGE_RIB_W  # tongue width
+TONGUE_W = 16.0        # tongue width: it prints upright, so the grub's pull runs across its layers;
+                       # 16 wide leaves 6.4 mm of layer either side of the hole (strip gap is 20)
 TONGUE_HOLE = 3.0      # blind hole in the tongue: the grub bottoms out in it
 TONGUE_CHAMFER = 1.0   # lead-in on the tongue tip, both faces
-TAB_W = 12.0           # tab from the back panel out to the tongue
+TAB_W = 20.0           # tab from the back panel out to the tongue
+BUTTRESS_OUT = 4.0     # 45 degree buttress on the tongue's outer face, up from the tab
+BUTTRESS_IN = 7.0      # and on its inner face (less if the channel is narrow); both stay below the rib
 TAB_T = 3.0            # tab thickness (the back panel's base)
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
@@ -455,6 +458,15 @@ def tongue_y(g):
     return y, y + TONGUE_T
 
 
+def buttresses(S, g):
+    """Edge light only: sizes of the 45 degree buttresses on the tongue's outer and inner faces,
+    kept clear of the outer wall and the inner wall."""
+    t0, t1 = tongue_y(g)
+    yo, yb = -g["Hs"] / 2, -g["Hc"] / 2
+    return (max(0.0, min(BUTTRESS_OUT, t0 - (yo + S["SW"]) - 0.5)),
+            max(0.0, min(BUTTRESS_IN, yb - t1 - CLEAR)))
+
+
 def edge_lead_z(g):
     """Height of the strip lead hole: above the back panel's bottom rim, below the front."""
     return min(3 + RIM_LOW_H + 4, g["zDF"] - 3.5)
@@ -683,13 +695,20 @@ def back_panel(S, g):
         # tab out under the inner wall, and a tongue standing up from it into the shell's rib slot.
         # The grub screw comes up from the insert below and bottoms out in the tongue's blind hole.
         t0, t1 = tongue_y(g)
-        panel = panel + box(-TAB_W / 2, TAB_W / 2, t0, -Hp / 2 + 1, 0, TAB_T)
+        bo, bi = buttresses(S, g)
+        panel = panel + box(-TAB_W / 2, TAB_W / 2, t0 - bo, -Hp / 2 + 1, 0, TAB_T)
         panel = panel + box(-TONGUE_W / 2, TONGUE_W / 2, t0, t1, 0, az)
+        # 45 degree buttresses on both faces, so the tongue's lowest layers are much larger
+        hw = TONGUE_W / 2
+        if bo > 0.01:
+            panel = panel + prism([(t0 - bo, TAB_T - 0.01), (t0 + 0.01, TAB_T - 0.01), (t0 + 0.01, TAB_T + bo)], -hw, hw)
+        if bi > 0.01:
+            panel = panel + prism([(t1 - 0.01, TAB_T - 0.01), (t1 + bi, TAB_T - 0.01), (t1 - 0.01, TAB_T + bi)], -hw, hw)
         panel = panel - cyl_y(0, GRUB_Z, t0 - 1, t0 + TONGUE_HOLE, ARM_HOLE_D)
         # 45 degree lead-in on both faces of the tip; they face up as printed
         c = TONGUE_CHAMFER
-        panel = panel - prism([(t0 - 1, az + 1), (t0 - 1, az - c - 1), (t0 + c + 1, az + 1)], -7, 7)
-        panel = panel - prism([(t1 + 1, az + 1), (t1 + 1, az - c - 1), (t1 - c - 1, az + 1)], -7, 7)
+        panel = panel - prism([(t0 - 1, az + 1), (t0 - 1, az - c - 1), (t0 + c + 1, az + 1)], -hw - 1, hw + 1)
+        panel = panel - prism([(t1 + 1, az + 1), (t1 + 1, az - c - 1), (t1 - c - 1, az + 1)], -hw - 1, hw + 1)
     else:
         # arm for the grub screw, tied into the bottom rim
         arm_y = -Hs / 2 + SW + BOSS_H + ARM_GAP + ARM_T / 2
