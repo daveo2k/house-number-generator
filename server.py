@@ -105,7 +105,9 @@ def edge_notes(S):
         "  either side of the grub rib at the bottom centre, and don't put a cut point on a corner.",
         f"  Its lead goes into the chamber through the {make_stl.EDGE_LEAD_D:g} mm hole beside the rib: seal it with",
         "  silicone afterwards. Wire it in parallel with the letter strips.",
-        "  The grub screw is reached through the rib, so use the long arm of the 1.5 mm hex key.",
+        "  Grub lock: press the M3 insert into the hole under the rib, from outside. The back panel's",
+        "  tongue slides into the rib's slot. Wind the M3 x 6 grub in flush before fitting the shell,",
+        "  then tighten it with a 1.5 mm hex key until it stops in the tongue, about 3.5 mm.",
     ]
 
 
@@ -208,7 +210,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "Three snap catches at the top click into notches in the back panel; the grub screw locks the bottom.",
                 seal_note(S),
                 *edge_notes(S),
-                "Hardware: M3 x 10 grub screw, M3 x 5.7 heat-set insert.",
+                f"Hardware: M3 x {6 if make_stl.derive(S)['ch'] else 10} grub screw, M3 x 5.7 heat-set insert.",
             ]))
         name = slug(S) + "-stl.zip"
         self._send(200, buf.getvalue(), "application/zip",

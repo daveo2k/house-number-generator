@@ -458,7 +458,7 @@ tr:last-child td { border-bottom: 0; }
     <figure>
       <div class="fig-head"><h2>Bottom-edge section</h2><span class="scale">through centre</span></div>
       <svg id="section" role="img" aria-label="Cross-section through the bottom edge"></svg>
-      <figcaption>The shell's sides run back to the wall, so the box is closed. A silicone cord on the back panel's rim seals the joint, and the grub screw tip locks into a hole in the back panel's arm.</figcaption>
+      <figcaption>The shell's sides run back to the wall, so the box is closed. A silicone cord on the back panel's rim seals the joint, and the grub screw tip locks into a hole in the back panel.</figcaption>
     </figure>
     <figure>
       <div class="fig-head"><h2>Back panel</h2><span class="scale">viewed from the front</span></div>
@@ -540,7 +540,7 @@ tr:last-child td { border-bottom: 0; }
     const e = S.edge === 'square' ? 0 : Math.max(0, Math.min(S.edgeSize, S.T - 0.6));
     // edge light: inner wall round the sealed chamber, channel to the outer wall (edge_channel in cad/make_stl.py)
     let ch = S.edgeLight ? Math.min(S.edgeW, (Math.min(Ws, Hs) - 90) / 2 - S.SW) : 0;
-    if (ch < 8) ch = 0;
+    if (ch < 10) ch = 0;   // EDGE_MIN_W: room for the insert, tongue and clearances
     const Wc = ch ? Ws - 2 * (S.SW + ch) : Ws, Hc = ch ? Hs - 2 * (S.SW + ch) : Hs;
     const Rc = ch ? Math.max(5, Rs - S.SW - ch) : Rs;
     const gap = ch ? Math.max(0, Math.min(S.edgeGap, 5)) : 0;   // outer wall stops short of the house wall
@@ -750,7 +750,9 @@ tr:last-child td { border-bottom: 0; }
     $('fit-led').textContent = S.edgeLight
       ? 'Stick the edge strip round the outside of the shell\'s inner wall, LEDs facing out, starting and finishing either side of the rib at the bottom centre. Feed its lead through the hole beside the rib and seal the hole with silicone. Connect it in parallel with the letter strips stuck to the back panel.'
       : 'Connect the LED strip, which is stuck to the back panel.';
-    $('fit-grub').textContent = 'Tighten the grub screw from below with a 1.5 mm hex key' + (S.edgeLight ? ', reaching in through the rib with the key\'s long arm.' : '.');
+    $('fit-grub').textContent = geo().ch
+      ? 'Wind the grub screw into the insert in the bottom of the outer wall until it\'s flush before fitting the shell. Then tighten it with a 1.5 mm hex key until it stops, about 3.5 mm, when it bottoms in the back panel\'s tongue.'
+      : 'Tighten the grub screw from below with a 1.5 mm hex key.';
     const eg = geo();
     $('edge-hint').textContent = S.edgeLight
       ? (eg.ch ? 'The shell gets a second, inner wall ' + fx(eg.ch) + ' mm in from the outer one. The letter LEDs and the seal stay inside the inner wall. A face-out IP65 COB strip goes round the outside of the inner wall and lights the outer wall along its full depth, because nothing covers it. The channel is open at the back to the house wall, and has its own weep holes.' + (eg.gap > 0.01 ? ' The outer wall stops ' + fx(eg.gap) + ' mm short of the wall, so it rides over uneven render and lets a thin line of light onto the wall.' : '') + ' Inner corners are at least R5, so the strip isn\'t bent sharply. For an even glow at the corners too, use a corner radius of about ' + fx(Math.ceil(eg.ch + S.SW + 5 + eg.o)) + ' mm or more. Keep the lettering inside the inner wall.'
@@ -865,30 +867,37 @@ tr:last-child td { border-bottom: 0; }
     s += S.seal === 'filament'
       ? '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".8" fill="#e0603a" stroke="var(--fg)" stroke-width=".15"/>'
       : '<circle cx="6" cy="' + y(b0 + 0.2) + '" r=".9" fill="var(--fg)"/>';
-    s += R(3, b0 + 7.5, 10.4, 3, back) + R(16.6, b0 + 7.5, 2.4, 3, back);   // grub arm, 1.5 mm above the boss
+    // grub lock: an arm above a boss inside the chamber, or with an edge light a tongue on a tab
+    // out under the inner wall, into a slot in the rib above the insert in the outer wall
+    const t0 = o + 6.5, t1 = t0 + 4;   // tongue_y in cad/make_stl.py
+    if (ch) s += R(0, t0, 3, b0 + 0.2 - t0, back) + R(0, t0, 13.4, 4, back) + R(16.6, t0, 2.4, 4, back);
+    else s += R(3, b0 + 7.5, 10.4, 3, back) + R(16.6, b0 + 7.5, 2.4, 3, back);   // grub arm, 1.5 mm above the boss
     // LED and light
     s += R(3, ob + 24, 1.6, 8, 'var(--led)');
     s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + L(4.8, y(ob + 28), zDF - .2, y(ob + 28)) + L(4.8, y(ob + 29), zDF - .2, y(ob + 42)) + L(4.8, y(ob + 27), zDF - .2, y(ob + 15)) + '</g>';
     // shell: bottom wall with hole, boss, front wall
-    s += R(0, ob, 13.3, SW, shell) + R(16.7, ob, zDF + F - 16.7, SW, shell);
+    if (ch) s += R(3.45, ob, zDF + F - 3.45, SW, shell);   // inner wall, notched at the back for the tab
+    else s += R(0, ob, 13.3, SW, shell) + R(16.7, ob, zDF + F - 16.7, SW, shell);
     const zs = zDF / 2 - 5;            // edge strip, centred on the channel's depth
     if (ch) {
       // outer wall, the grub rib across the channel (in the plane of this section), and the edge strip beyond it
       s += R(g.gap, o, 13.3 - g.gap, SW, shell) + R(16.7, o, zDF + F - 16.7, SW, shell);
-      s += R(11, o + SW, 2.3, ch, shell) + R(16.7, o + SW, zDF - 16.7, ch, shell);
+      // rib: below the slot (round the insert), above it, and in front of the tongue
+      s += R(11, o + SW, 1.9, t0 - 0.45 - o - SW, shell) + R(17.1, o + SW, zDF - 17.1, t0 - 0.45 - o - SW, shell);
+      s += R(19.45, t0 - 0.45, zDF - 19.45, 4.9, shell) + R(11, t1 + 0.45, zDF - 11, ob - t1 - 0.45, shell);
       s += '<rect x="' + zs + '" y="' + y(ob) + '" width="10" height="2.5" fill="var(--led)" fill-opacity=".7" stroke="var(--led)" stroke-width=".25" stroke-dasharray=".8 .5"/>';
       s += '<g stroke="var(--led)" stroke-width=".35" stroke-dasharray="1 1">' + [0, 1, 2].map(i => L(zs + 5, y(ob - 2.6), zs + 5 + (i - 1) * 9, y(o + SW + .2))).join('') + '</g>';
     }
-    s += R(11, b0, 1.9, 6, shell) + R(17.1, b0, 1.9, 6, shell);
+    if (!ch) s += R(11, b0, 1.9, 6, shell) + R(17.1, b0, 1.9, 6, shell);
     const tog = S.front === 'together';
     const hbL = S.H - m.bottom, htL = hbL + m.lowH;
     if (tog && hbL < Hv && Math.min(S.recess, Tt) < Tt - 0.01) s += R(zDF, o, F, hbL - o, shell) + (htL < top ? R(zDF, htL, F, top - htL, shell) : '');
     else s += R(zDF, o, F, top - o, shell);
     // insert + grub
-    s += R(12.9, b0 + 0.3, 4.2, 5.7, 'var(--brass)');
-    const gb = ob + Math.max(0.5, SW - 0.5);
-    s += R(13.5, gb, 3, b0 + 9.5 - gb, 'var(--brass)');
-    s += '<g stroke="var(--fg)" stroke-width=".15" opacity=".55">' + [0, 1, 2, 3, 4, 5].map(i => L(13.5, y(gb + 1 + i * 1.5), 16.5, y(gb + 1.5 + i * 1.5))).join('') + '</g>';
+    const ib = ch ? o : b0 + 0.3, gb = ch ? o + 3.5 : ob + Math.max(0.5, SW - 0.5), gt = ch ? t0 + 3 : b0 + 9.5;
+    s += R(12.9, ib, 4.2, 5.7, 'var(--brass)');
+    s += R(13.5, gb, 3, gt - gb, 'var(--brass)');
+    s += '<g stroke="var(--fg)" stroke-width=".15" opacity=".55">' + [0, 1, 2, 3, 4, 5].filter(i => gb + 1.5 + i * 1.5 < gt).map(i => L(13.5, y(gb + 1 + i * 1.5), 16.5, y(gb + 1.5 + i * 1.5))).join('') + '</g>';
     // face plate with letter cut and edge profile
     const zF = D - Tt;
     const hb = S.H - m.bottom, ht = hb + m.lowH;
@@ -918,14 +927,15 @@ tr:last-child td { border-bottom: 0; }
       [D - Tt / 2, Math.min(o + 10, fTop / 2), 'Face plate ' + fx(Tt) + ' · ' + edgeTxt],
       [zDF + F / 2, o + 36, 'Diffuser front ' + fx(F)],
       [3.8, ob + 28, 'LED strip · ' + fx(g.throw_) + ' throw'],
-      [8, b0 + 9, 'Back panel arm, Ø3.2 hole'],
+      ch ? [8, t0 + 2, 'Tongue, Ø3.2 blind hole'] : [8, b0 + 9, 'Back panel arm, Ø3.2 hole'],
       [6, b0 + 0.2, S.seal === 'filament' ? '1.75 TPU filament seal' : 'Silicone cord seal'],
-      [15, b0 + 4, 'M3 heat-set insert'],
+      [15, ib + 4, 'M3 heat-set insert'],
       [24, ob + SW / 2, ch ? 'Inner wall ' + fx(SW) : 'Diffuser side ' + fx(SW)],
       ch ? [8, o + SW / 2, 'Outer wall ' + fx(SW) + (g.gap > 0.01 ? ', ' + fx(g.gap) + ' gap to wall' : ', lit full depth')] : null,
       ch ? [zs + 7, ob - 1.25, 'Edge strip, IP65 COB, facing out'] : null,
-      ch ? [20, o + SW + ch / 2, 'Grub rib · ' + fx(ch) + ' channel'] : null,
-      [15, gb + 0.5, 'M3 × 10 grub, recessed'],
+      ch ? [24, (t1 + ob) / 2, 'Slotted rib · ' + fx(ch) + ' channel'] : null,
+      ch ? [1.5, (t1 + b0) / 2, 'Tab under the inner wall'] : null,
+      ch ? [15, gb + 0.5, 'M3 × 6 grub, flush when loose'] : [15, gb + 0.5, 'M3 × 10 grub, recessed'],
       o > 0 ? [zF - 2, o / 2, 'Overhang ' + fx(o)] : null
     ].filter(Boolean).sort((a, b) => b[1] - a[1]);
     const step = (Hv + 7) / labels.length;
@@ -958,21 +968,25 @@ tr:last-child td { border-bottom: 0; }
       }
     });
     s += '<circle cx="' + X(g.cable[0]) + '" cy="' + Y(g.cable[1]) + '" r="4" fill="var(--bg)" stroke="var(--fg)" stroke-width=".4"/>';
-    s += '<rect x="' + (Wp / 2 - 6) + '" y="' + (Hp - 9.3) + '" width="12" height="3" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>';
+    // grub arm inside the rim, or with an edge light a tab and tongue reaching out below the panel
+    const tOut = g.ch ? 2 * S.SW + g.ch + 0.45 - 6.5 : 0;   // panel edge to the tongue's far face
+    if (g.ch) s += '<rect x="' + (Wp / 2 - 6) + '" y="' + Hp + '" width="12" height="' + tOut + '" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>'
+      + '<rect x="' + (Wp / 2 - 4) + '" y="' + (Hp + tOut - 4) + '" width="8" height="4" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>';
+    else s += '<rect x="' + (Wp / 2 - 6) + '" y="' + (Hp - 9.3) + '" width="12" height="3" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>';
     if (S.seal === 'filament') s += '<rect x="' + X(-22) + '" y="' + (Hp - 10) + '" width="12" height="8" fill="var(--p-back)" stroke="var(--fg)" stroke-width=".3"/>' + [-18, -14].map(ax => '<rect x="' + (X(ax) - .75) + '" y="' + (Hp - 10) + '" width="1.5" height="10" fill="#e0603a"/>').join('');
     [-Wp / 3, 0, Wp / 3].forEach(cx => { s += '<rect x="' + (X(cx) - 10) + '" y="-0.6" width="20" height="1.6" fill="var(--accent)"/>'; });
     s += '<g font-family="IBM Plex Mono, monospace" font-size="' + fs * .8 + '" fill="var(--fg)">' +
       T(X(g.cable[0]) + 7, Y(g.cable[1]) + fs * .3, 'cable Ø8', false, 'start') +
-      T(Wp / 2, Hp - 11, 'grub arm', false) + (S.seal === 'filament' ? T(X(-24), Hp - 4, 'seal anchor', false, 'end') : '') + [-Wp / 3, 0, Wp / 3].map(cx => T(X(cx), 6 + fs * .5, 'catch notch', false)).join('') + '</g>';
+      (g.ch ? T(Wp / 2 + 8, Hp + tOut - 1, 'grub tongue', false, 'start') : T(Wp / 2, Hp - 11, 'grub arm', false)) + (S.seal === 'filament' ? T(X(-24), Hp - 4, 'seal anchor', false, 'end') : '') + [-Wp / 3, 0, Wp / 3].map(cx => T(X(cx), 6 + fs * .5, 'catch notch', false)).join('') + '</g>';
     const hs = g.holes.map(h => h[0]), vs = g.holes.map(h => h[1]);
     const x1 = Math.min(...hs), x2 = Math.max(...hs), y1 = Math.max(...vs), y2 = Math.min(...vs);
     s += '<g stroke="var(--muted)" stroke-width=".4" fill="var(--muted)" font-family="IBM Plex Mono, monospace" font-size="' + fs + '">';
     s += dimH(X(x1), X(x2), -10, fx(x2 - x1));
     if (y1 !== y2) s += '<g transform="translate(' + (Wp + 12) + ',0)">' + L(0, Y(y1), 0, Y(y2)) + L(-3, Y(y1), 3, Y(y1)) + L(-3, Y(y2), 3, Y(y2)) + '<g stroke="none">' + T(fs + 1, (Y(y1) + Y(y2)) / 2, fx(y1 - y2), true) + '</g></g>';
-    s += dimH(0, Wp, Hp + 12, fx(Wp) + ' × ' + fx(Hp));
+    s += dimH(0, Wp, Hp + tOut + 12, fx(Wp) + ' × ' + fx(Hp));
     s += '</g>';
     const sv = $('back');
-    sv.setAttribute('viewBox', '-24 -24 ' + (Wp + 52) + ' ' + (Hp + 46));
+    sv.setAttribute('viewBox', '-24 -24 ' + (Wp + 52) + ' ' + (Hp + tOut + 46));
     sv.innerHTML = s;
   }
 
@@ -1005,12 +1019,12 @@ tr:last-child td { border-bottom: 0; }
         ? [['#9aa0a6', num('Recess plugs'), 'PLA or Support for PETG', fx(Math.min(S.recess, S.T)) + ' deep', 'Fills the letter recesses while printing. Assign it to the white nozzle: it only prints below the white, so there is one filament swap. Pop the plugs out afterwards with a pick.']]
         : [])
       : [['var(--p-face)', num('Face plate'), 'Black ASA or PETG', fx(S.W) + ' × ' + fx(S.H) + ' × ' + fx(S.T), 'Lettering cut through. Front edge ' + edgeTxt + ', corners ' + (g.R > 0 ? 'R' + fx(g.R) : 'square') + '. ' + (g.o > 0 ? 'Overhangs the diffuser by ' + fx(g.o) + ' mm all round. ' : '') + (S.pins ? 'Three Ø3 × 2 mm alignment pins on the back. ' : '') + 'Glued to the diffuser.'],
-        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. ' + (g.ch ? 'Inner wall ' + fx(g.Wc) + ' × ' + fx(g.Hc) + ' round the sealed chamber, with a ' + fx(g.ch) + ' mm channel to the outer wall for the edge strip, a rib at the bottom centre that guides the grub screw, a Ø6 hole for the strip lead and two weep holes. ' + (g.gap > 0.01 ? 'The outer wall stops ' + fx(g.gap) + ' mm short of the wall. ' : '') + '' : '') + 'Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top, and a boss underneath for the M3 insert and grub screw.']];
+        ['var(--p-diff)', num('Diffuser shell'), 'White or natural PETG', fx(g.Ws) + ' × ' + fx(g.Hs) + ' × ' + fx(S.D - S.T), fx(S.F) + ' mm front and ' + fx(S.SW) + ' mm sides, open at the back. ' + (g.ch ? 'Inner wall ' + fx(g.Wc) + ' × ' + fx(g.Hc) + ' round the sealed chamber, with a ' + fx(g.ch) + ' mm channel to the outer wall for the edge strip, a rib at the bottom centre with the M3 insert pressed in from below and a slot for the back panel\'s tongue, a notch in the inner wall\'s back edge for the tongue\'s tab, a Ø6 hole for the strip lead and two weep holes. ' + (g.gap > 0.01 ? 'The outer wall stops ' + fx(g.gap) + ' mm short of the wall. ' : '') + '' : '') + 'Flat front that shows through the letters. ' + (S.pins ? 'Three alignment sockets. ' : '') + 'Three snap catches inside the top' + (g.ch ? '.' : ', and a boss underneath for the M3 insert and grub screw.')]];
     $('parts').innerHTML = [
       ...frontRows,
-      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp) + ' × 19', '3 mm plate with a rim and seal groove all round. The rim is 12 mm along the top for the three catch notches and 7 mm on the sides and bottom. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and the arm the grub screw locks into.'],
+      ['var(--p-back)', num('Back panel'), 'Any colour PETG / ASA', fx(g.Wp) + ' × ' + fx(g.Hp + (g.ch ? 2 * S.SW + g.ch + 0.45 - 6.5 : 0)) + ' × 19', '3 mm plate with a rim and seal groove all round. The rim is 12 mm along the top for the three catch notches and 7 mm on the sides and bottom. ' + (tpu ? 'Two anchor holes at the bottom, left of the grub arm, for the ends of the TPU seal. ' : '') + S.holes + ' × ' + S.holeType + ' holes for ' + fx(S.holeD) + ' mm screws, Ø8 cable entry, and ' + (g.ch ? 'a tab at the bottom centre that runs out under the shell\'s inner wall to a tongue the grub screw locks into.' : 'the arm the grub screw locks into.')],
       ...(tpu ? [['#e0603a', num('TPU seal'), '1.75 mm TPU filament, unprinted', 'cut ' + fx(Math.round(cut)), 'Cut ' + fx(Math.round(cut)) + ' mm. That is 2% short of the ' + fx(Math.round(loop)) + ' mm groove, so it hugs the groove when stretched on, plus 25 mm at each end for the anchor. Push one end through each anchor hole at the bottom, fold the tail back and press it down into the slot above. Trim any spare. No glue needed. It stands 0.65 mm proud of the rim, so the shell squeezes it by about 0.2 mm.']] : []),
-      ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × 10 grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. ' + (g.ch ? fx(g.edgeLen / 1000, 2) + ' m of IP65 12 V COB strip, up to 10 mm wide, for the edge light, wired in parallel. Silicone to seal its lead hole. ' : '') + 'Cable gland.']
+      ['var(--brass)', num('Hardware'), 'Bought', 'M3', 'M3 × ' + (g.ch ? 6 : 10) + ' grub screw (hex socket). M3 × 5.7 heat-set insert (Ø4.0 hole). ' + (tpu ? '' : fx(loop / 1000, 2) + ' m of 2 mm silicone cord. ') + fx(g.rowYs.length * g.ledLen / 1000, 2) + ' m of 12 V COB LED strip, 3000 K. ' + (g.ch ? fx(g.edgeLen / 1000, 2) + ' m of IP65 12 V COB strip, up to 10 mm wide, for the edge light, wired in parallel. Silicone to seal its lead hole. ' : '') + 'Cable gland.']
     ].map(r => '<tr><td><span class="chip" style="background:' + r[0] + '"></span>' + r[1] + '</td><td>' + r[2] + '</td><td class="mono">' + r[3] + '</td><td>' + r[4] + '</td></tr>').join('');
     // warnings
     const w = [];
@@ -1182,7 +1196,11 @@ tr:last-child td { border-bottom: 0; }
     const band = Math.max(10, g.Rp + 4);                     // and 12 mm along the top for the catches
     box(Wp - 2 * g.Rp, 2, 5, M.back, 0, Hp / 2 - 1, 12.5, backG);
     [-1, 1].forEach(sx => box(2, band - g.Rp, 5, M.back, sx * (Wp / 2 - 1), Hp / 2 - g.Rp - (band - g.Rp) / 2, 12.5, backG));
-    box(12, 3, 16, M.back, 0, -Hs / 2 + SW + 8, 11, backG);
+    const yo = -g.Hs / 2, t0 = yo + 6.5;   // tongue_y in cad/make_stl.py
+    if (g.ch) {
+      box(12, -Hp / 2 - t0, 3, M.back, 0, (t0 - Hp / 2) / 2, 1.5, backG);   // tab out under the inner wall
+      box(8, 4, 19, M.back, 0, t0 + 2, 9.5, backG);                         // tongue into the rib slot
+    } else box(12, 3, 16, M.back, 0, -Hs / 2 + SW + 8, 11, backG);
     g.rowYs.forEach(y => box(g.ledLen, 8, 1.5, M.led, 0, y, 3.75, backG));
     g.holes.forEach(([hx, hy]) => {
       if (S.holeType === 'keyhole') {
@@ -1204,11 +1222,14 @@ tr:last-child td { border-bottom: 0; }
     if (g.ch) {
       mesh(ext(ring(g.Wc, g.Hc, g.Rc, SW), zDF), M.diff, 0, shell);
       mesh(ext(ring(g.Wc + 5, g.Hc + 5, g.Rc + 2.5, 2.5), 10), M.led, zDF / 2 - 5, shell);   // edge strip, face out
-      box(8, g.ch, zDF - 11, M.diff, 0, -g.Hs / 2 + SW + g.ch / 2, 11 + (zDF - 11) / 2, shell);   // grub rib
-    }
-    box(8, 6, 8, M.diff, 0, -Hs / 2 + SW + 3, 15, shell);
+      // rib round the insert, over the tongue slot, and on to the inner wall
+      const lo = t0 - 0.45 - (yo + SW), hi = -g.Hc / 2 - (t0 + 4.45);
+      box(8, lo, zDF - 11, M.diff, 0, yo + SW + lo / 2, 11 + (zDF - 11) / 2, shell);
+      box(8, 4.9, zDF - 19.45, M.diff, 0, t0 + 2, 19.45 + (zDF - 19.45) / 2, shell);
+      box(8, hi, zDF - 11, M.diff, 0, -g.Hc / 2 - hi / 2, 11 + (zDF - 11) / 2, shell);
+    } else box(8, 6, 8, M.diff, 0, -Hs / 2 + SW + 3, 15, shell);
     const ins = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 5.7, 16), M.brass);
-    ins.position.set(0, -Hs / 2 + SW + 3.15, 15); shell.add(ins);
+    ins.position.set(0, g.ch ? yo + 2.85 : -Hs / 2 + SW + 3.15, 15); shell.add(ins);
 
     // face plate: rounded corners plus optional chamfered or rounded front edge
     const face = new THREE.Group(); plaque.add(face);
@@ -1224,8 +1245,8 @@ tr:last-child td { border-bottom: 0; }
     // grub screw (moves with the shell in exploded view)
     const grub = new THREE.Group(); plaque.add(grub);
     const gb = Math.max(0.5, SW - 0.5);
-    const gm = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 10, 14), M.steel);
-    gm.position.set(0, -Hs / 2 + gb + 5, 15); grub.add(gm);
+    const gm = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, g.ch ? 6 : 10, 14), M.steel);
+    gm.position.set(0, g.ch ? yo + 6.5 : -Hs / 2 + gb + 5, 15); grub.add(gm);
 
     // halo on wall
     const hw = W + 460, hh = H + 380;

@@ -7,8 +7,10 @@ Reads the JSON from the designer's "Copy settings" button and writes three STLs:
   diffuser_shell.stl - white light box: front + sides, grub screw boss and insert hole. With
                        "edgeLight" it has two walls: an inner one round the sealed chamber that
                        backlights the letters, and an outer one that glows from a face-out LED
-                       strip on the inner wall, in a channel left open to the house wall
-  back_panel.stl     - wall plate with rim, seal groove, screw holes, cable hole, grub arm
+                       strip on the inner wall, in a channel left open to the house wall. The
+                       insert then sits in the outer wall, in a slotted rib across the channel
+  back_panel.stl     - wall plate with rim, seal groove, screw holes, cable hole, grub arm (with
+                       an edge light: a tab out under the inner wall and a tongue in the rib slot)
 
 With "front": "together" the face plate and diffuser print as one two-colour part instead:
 
@@ -107,7 +109,18 @@ EDGE_MIN_CHAMBER = 90.0  # smallest chamber height left for the letters and back
 EDGE_STRIP_W = 10.0    # strip width, for the drawings and parts note
 EDGE_LEAD_D = 6.0      # hole through the inner wall for the strip's lead
 EDGE_LEAD_X = 10.0     # beside the grub rib, where the strip's two ends meet (1 mm clear of the grub arm)
-EDGE_RIB_W = 8.0       # rib across the channel that guides the grub screw
+EDGE_RIB_W = 8.0       # rib across the channel that holds the insert and the back panel's tongue
+EDGE_MIN_W = 10.0      # narrowest channel: room for the insert, tongue and clearances
+# With an edge light the grub lock moves to the outer wall, so the screw is short and easy to reach:
+# the insert is pressed into the outside of the rib, and a tongue on the back panel (on a tab that
+# runs out under the inner wall, behind the seal) slides into a slot in the rib above it.
+TONGUE_GAP = 0.5       # insert top to tongue
+TONGUE_T = 4.0         # tongue thickness (along the grub screw)
+TONGUE_W = EDGE_RIB_W  # tongue width
+TONGUE_HOLE = 3.0      # blind hole in the tongue: the grub bottoms out in it
+TONGUE_CHAMFER = 1.0   # lead-in on the tongue tip, both faces
+TAB_W = 12.0           # tab from the back panel out to the tongue
+TAB_T = 3.0            # tab thickness (the back panel's base)
 LEAD_IN = 0.8          # chamfer on the shell's rear inner edge, eases it over the seal
 SEG = 48               # segments for circles
 HALIGNS = ("left", "centre", "right")
@@ -424,7 +437,7 @@ def edge_channel(S, Ws, Hs):
     if not S.get("edgeLight"):
         return 0.0
     w = min(float(S.get("edgeW", EDGE_W_DEF)), (min(Ws, Hs) - EDGE_MIN_CHAMBER) / 2 - S["SW"])
-    return w if w >= 8 else 0.0
+    return w if w >= EDGE_MIN_W else 0.0
 
 
 def edge_strip(S, g):
@@ -434,6 +447,12 @@ def edge_strip(S, g):
     Wc, Hc, Rc = g["Wc"], g["Hc"], g["Rc"]
     length = 2 * (Wc + Hc) - (8 - 2 * math.pi) * Rc - 2 * EDGE_LEAD_X
     return length, g["zDF"] / 2
+
+
+def tongue_y(g):
+    """Edge light only: the back panel tongue's lower and upper faces (y), above the insert."""
+    y = -g["Hs"] / 2 + INSERT_L + 0.3 + TONGUE_GAP
+    return y, y + TONGUE_T
 
 
 def edge_lead_z(g):
@@ -508,9 +527,17 @@ def diffuser_shell(S, g, pins=()):
     if ch:
         # inner wall round the sealed chamber, running back to the wall like the outer one
         shell = shell + ext(rr(Wc, Hc, Rc) - rr(Wc - 2 * SW, Hc - 2 * SW, max(0, Rc - SW)), zDF + 0.01)
-        # rib across the channel at the bottom centre: guides the grub screw and hex key in, and
+        # rib across the channel at the bottom centre: holds the insert, pressed in from outside, and
         # ties the two walls together. It runs forward to the front, so it prints without support.
         shell = shell + box(-EDGE_RIB_W / 2, EDGE_RIB_W / 2, yo + SW - 0.01, yb + 0.01, GRUB_Z - 4, zDF + 0.01)
+        shell = shell - cyl_y(0, GRUB_Z, yo - 1, yo + INSERT_L + 0.3, INSERT_D)
+        # slot through the rib for the back panel's tongue, open towards the wall
+        t0, t1 = tongue_y(g)
+        tz = GRUB_Z + 4 + CLEAR
+        shell = shell - box(-TONGUE_W / 2 - CLEAR, TONGUE_W / 2 + CLEAR, t0 - CLEAR, t1 + CLEAR, -1, tz)
+        shell = shell - cyl_y(0, GRUB_Z, yo + INSERT_L, t0, GRUB_CLEAR_D)
+        # notch in the inner wall's rear edge for the tongue's tab, below the seal
+        shell = shell - box(-TAB_W / 2 - CLEAR, TAB_W / 2 + CLEAR, yb - 1, yb + SW + 1, -1, TAB_T + CLEAR)
         # hole beside the rib for the strip's lead, into the chamber
         shell = shell - cyl_y(EDGE_LEAD_X, edge_lead_z(g), yb - 1, yb + SW + 1, EDGE_LEAD_D)
         # weep holes in the outer wall: one under the chamber's weep hole, one at the other end
@@ -521,11 +548,12 @@ def diffuser_shell(S, g, pins=()):
             # (the cut reaches 0.3 mm into the empty channel so the corners leave no slivers)
             shell = shell - ext(rr(Ws + 2, Hs + 2, Rs + 1) - rr(Ws - 2 * SW - 0.6, Hs - 2 * SW - 0.6, max(0, Rs - SW - 0.3)),
                                 g["gap"] + 1, -1)
-    # boss for the insert, running forward to the front wall so it prints without support
-    boss_top = yb + SW + BOSS_H
-    shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
-    shell = shell - cyl_y(0, GRUB_Z, yo - 1, boss_top + 1, GRUB_CLEAR_D)
-    shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
+    if not ch:
+        # boss for the insert, running forward to the front wall so it prints without support
+        boss_top = yb + SW + BOSS_H
+        shell = shell + box(-4, 4, yb + SW - 0.01, boss_top, GRUB_Z - 4, zDF + 0.01)
+        shell = shell - cyl_y(0, GRUB_Z, yo - 1, boss_top + 1, GRUB_CLEAR_D)
+        shell = shell - cyl_y(0, GRUB_Z, boss_top - INSERT_L - 0.3, boss_top + 1, INSERT_D)
     # weep hole near one bottom corner, towards the front so the back panel rim doesn't block it
     shell = shell - cyl_y(-Wc / 2 + 15, weep_z(S, g), yb - 1, yb + SW + 1, 2.0)
     # lead-in chamfer round the rear inner edge, so the shell slides over the seal
@@ -627,8 +655,9 @@ def back_panel(S, g):
     # lower the rim on the sides and bottom; only the top needs the height for the catch notches
     band = max(RIM_TOP_BAND, Rp + 4)
     panel = panel - box(-Wp / 2 - 1, Wp / 2 + 1, -Hp / 2 - 1, Hp / 2 - band, 3 + RIM_LOW_H, 3 + RIM_H + 1)
-    # notch in the bottom rim so it clears the shell's insert boss
-    panel = panel - box(-5.5, 5.5, -Hp / 2 - 1, -Hp / 2 + 2.5, 9, 3 + RIM_H + 1)
+    if not g["ch"]:
+        # notch in the bottom rim so it clears the shell's insert boss
+        panel = panel - box(-5.5, 5.5, -Hp / 2 - 1, -Hp / 2 + 2.5, 9, 3 + RIM_H + 1)
     # notches in the top rim for the shell's catches. The upper face is 45 degrees (the face that
     # holds); the lower face follows the catch's 30 degree ramp so the catch seats fully. The tip
     # is 0.2 mm clear of the catch. A pad inside the rim keeps the wall behind each notch 2 mm thick.
@@ -649,14 +678,27 @@ def back_panel(S, g):
     panel = panel - (ext(rr(Wp + 4, Hp + 4, Rp + 2), zt + sd - zb, zb) - core)
     if seal_type(S) == "filament":
         panel = seal_anchor(panel, Hp)
-    # arm for the grub screw, tied into the bottom rim
-    arm_y = -Hs / 2 + SW + BOSS_H + ARM_GAP + ARM_T / 2
-    a0, a1, az = arm_y - ARM_T / 2, arm_y + ARM_T / 2, GRUB_Z + 4
-    panel = panel + box(-6, 6, a0, a1, 2.99, az)
-    panel = panel + box(-6, 6, -Hp / 2 + 1, a1, 2.99, 9)
-    panel = panel - cyl_y(0, GRUB_Z, a0 - 1.5, a1 + 1.5, ARM_HOLE_D)
-    # 45 degree chamfer on the tip's boss side; it faces up as printed, so no overhang
-    panel = panel - prism([(a0 - 1, az + 1), (a0 - 1, az - ARM_CHAMFER - 1), (a0 + ARM_CHAMFER + 1, az + 1)], -7, 7)
+    az = GRUB_Z + 4
+    if g["ch"]:
+        # tab out under the inner wall, and a tongue standing up from it into the shell's rib slot.
+        # The grub screw comes up from the insert below and bottoms out in the tongue's blind hole.
+        t0, t1 = tongue_y(g)
+        panel = panel + box(-TAB_W / 2, TAB_W / 2, t0, -Hp / 2 + 1, 0, TAB_T)
+        panel = panel + box(-TONGUE_W / 2, TONGUE_W / 2, t0, t1, 0, az)
+        panel = panel - cyl_y(0, GRUB_Z, t0 - 1, t0 + TONGUE_HOLE, ARM_HOLE_D)
+        # 45 degree lead-in on both faces of the tip; they face up as printed
+        c = TONGUE_CHAMFER
+        panel = panel - prism([(t0 - 1, az + 1), (t0 - 1, az - c - 1), (t0 + c + 1, az + 1)], -7, 7)
+        panel = panel - prism([(t1 + 1, az + 1), (t1 + 1, az - c - 1), (t1 - c - 1, az + 1)], -7, 7)
+    else:
+        # arm for the grub screw, tied into the bottom rim
+        arm_y = -Hs / 2 + SW + BOSS_H + ARM_GAP + ARM_T / 2
+        a0, a1 = arm_y - ARM_T / 2, arm_y + ARM_T / 2
+        panel = panel + box(-6, 6, a0, a1, 2.99, az)
+        panel = panel + box(-6, 6, -Hp / 2 + 1, a1, 2.99, 9)
+        panel = panel - cyl_y(0, GRUB_Z, a0 - 1.5, a1 + 1.5, ARM_HOLE_D)
+        # 45 degree chamfer on the tip's boss side; it faces up as printed, so no overhang
+        panel = panel - prism([(a0 - 1, az + 1), (a0 - 1, az - ARM_CHAMFER - 1), (a0 + ARM_CHAMFER + 1, az + 1)], -7, 7)
     # wall screw holes
     d = S["holeD"]
     for x, y in g["holes"]:
